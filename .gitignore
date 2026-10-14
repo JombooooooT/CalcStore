@@ -1,0 +1,9 @@
+node_modules/
+dist/
+out/
+.claude/
+.agent/
+*.db
+*.db-wal
+*.db-shm
+*.bak*

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>Product Form</title>
+  <link rel="stylesheet" href="product-form.css" />
+</head>
+<body>
+  <div class="pf-card">
+
+    <!-- Close button -->
+    <button class="pf-close-btn" id="pf-close" type="button"
+            tabindex="5" aria-label="Close">✕</button>
+
+    <!-- Title / label -->
+    <label class="pf-title" id="pf-title" for="pf-name">Product Name:</label>
+
+    <!-- Name input -->
+    <input class="pf-input pf-name-input" id="pf-name" type="text"
+           dir="auto" placeholder="Enter Name.." autocomplete="off"
+           spellcheck="false" maxlength="60" tabindex="1" />
+
+    <!-- Buy Price row -->
+    <div class="pf-price-row pf-row-buy">
+      <label class="pf-price-label" for="pf-buy">Buy Price:</label>
+      <div class="pf-price-wrap">
+        <input class="pf-input pf-price-input" id="pf-buy" type="text"
+               inputmode="decimal" placeholder="0.00" autocomplete="off"
+               spellcheck="false" tabindex="2" />
+        <span class="pf-suffix">dzd</span>
+      </div>
+    </div>
+
+    <!-- Sell Price row -->
+    <div class="pf-price-row pf-row-sell">
+      <label class="pf-price-label" for="pf-sell">Sell Price:</label>
+      <div class="pf-price-wrap">
+        <input class="pf-input pf-price-input" id="pf-sell" type="text"
+               inputmode="decimal" placeholder="0.00" autocomplete="off"
+               spellcheck="false" tabindex="3" />
+        <span class="pf-suffix">dzd</span>
+      </div>
+    </div>
+
+    <!-- Error message line (y = 293 to 317px) -->
+    <div class="pf-error-msg" id="pf-error" style="display: none;"></div>
+
+    <!-- Submit button -->
+    <button class="pf-submit-btn" id="pf-submit" type="button"
+            tabindex="4">Add product</button>
+
+  </div>
+
+  <script src="product-form.js"></script>
+</body>
+</html>

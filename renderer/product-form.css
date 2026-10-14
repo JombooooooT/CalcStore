@@ -1,0 +1,271 @@
+/* =========================================================
+   Product Form — Stylesheet
+   Standalone: does not inherit from the main window's CSS.
+   ========================================================= */
+
+/* ---------- Cairo font (Arabic support, self-hosted) ------ */
+@font-face {
+  font-family: 'Cairo';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff2') format('woff2'),
+       url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff')  format('woff');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: 'Cairo';
+  font-style:  normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff2') format('woff2'),
+       url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff')  format('woff');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+/* ---------- Design tokens ---------- */
+:root {
+  --pf-font:      'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --pf-card-bg:   #14594e;
+  --pf-accent:    #24b29d;
+  --pf-accent-lt: #2cc4ad;      /* lighter accent for hover */
+  --pf-focus:     #59e5d0;
+  --pf-text:      #ffffff;
+  --pf-input-bg:  #ffffff;
+  --pf-input-fg:  #0b4a3f;
+  --pf-placeholder: #cfcfcf;
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 396px;
+  height: 393px;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--pf-font);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- Card (fills the whole window) ---------- */
+.pf-card {
+  position: relative;
+  width: 396px;
+  height: 393px;
+  background: var(--pf-card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+/* ---------- Close button ---------- */
+.pf-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: var(--pf-accent);
+  color: var(--pf-text);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--pf-font);
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, filter 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.pf-close-btn:hover {
+  background: var(--pf-accent-lt);
+  filter: brightness(1.1);
+}
+
+.pf-close-btn:active {
+  filter: brightness(0.95);
+}
+
+.pf-close-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--pf-focus);
+}
+
+/* ---------- Title ---------- */
+.pf-title {
+  display: block;
+  width: 100%;
+  text-align: center;
+  /* Vertical center at y = 80px → top ≈ 80 − lineHeight/2
+     With font-size 22px and lineHeight ~30px: top ≈ 65px */
+  position: absolute;
+  top: 65px;
+  left: 0;
+  color: var(--pf-text);
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--pf-font);
+  pointer-events: none;
+}
+
+/* ---------- Shared input style ---------- */
+.pf-input {
+  border: none;
+  outline: none;
+  background: var(--pf-input-bg);
+  color: var(--pf-input-fg);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--pf-font);
+  border-radius: 14px;
+  -webkit-app-region: no-drag;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.pf-input::placeholder {
+  color: var(--pf-placeholder);
+  font-weight: 700;
+}
+
+.pf-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--pf-accent);
+}
+
+/* ---------- Name input ---------- */
+.pf-name-input {
+  position: absolute;
+  left: 26px;
+  top: 108px;
+  width: 343px;
+  height: 49px;
+  padding: 0 26px;
+}
+
+/* ---------- Price rows ---------- */
+.pf-price-row {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 49px;
+  display: flex;
+  align-items: center;
+}
+
+.pf-row-buy  { top: 172px; }
+.pf-row-sell { top: 236px; }
+
+.pf-price-label {
+  position: absolute;
+  left: 36px;
+  color: var(--pf-text);
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--pf-font);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Price input wrapper — holds input + "dzd" suffix */
+.pf-price-wrap {
+  position: absolute;
+  left: 197px;
+  width: 172px;
+  height: 49px;
+}
+
+.pf-price-input {
+  width: 172px;
+  height: 49px;
+  padding: 0 60px 0 14px;          /* right padding avoids text under suffix */
+  text-align: left;
+}
+
+/* Fixed "dzd" suffix inside the price input */
+.pf-suffix {
+  position: absolute;
+  right: 21px;
+  top: 0;
+  height: 49px;
+  line-height: 49px;
+  color: var(--pf-placeholder);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--pf-font);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- Submit button ---------- */
+.pf-submit-btn {
+  position: absolute;
+  /* right edge at x=369 → right = 396 − 369 = 27px; width 180 → left = 369 − 180 = 189 */
+  left: 189px;
+  top: 325px;
+  width: 180px;
+  height: 37px;
+  border: none;
+  border-radius: 10px;
+  background: var(--pf-accent);
+  color: var(--pf-text);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--pf-font);
+  cursor: pointer;
+  transition: background 0.15s ease, filter 0.15s ease, transform 0.1s ease;
+  -webkit-app-region: no-drag;
+}
+
+.pf-submit-btn:hover {
+  background: var(--pf-accent-lt);
+  filter: brightness(1.05);
+}
+
+.pf-submit-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+
+.pf-submit-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--pf-focus);
+}
+
+/* ---------- Error Message (y = 293px to 317px, centered, bold ~13px, #ffb3b3) ---------- */
+.pf-error-msg {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 293px;
+  height: 24px;
+  line-height: 24px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffb3b3;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Invalid input 2px #ff6b6b ring */
+.pf-input.has-error {
+  box-shadow: 0 0 0 2px #ff6b6b !important;
+}

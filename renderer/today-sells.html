@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>Today's Sells</title>
+  <link rel="stylesheet" href="today-sells.css" />
+</head>
+<body>
+  <div class="ts-card">
+
+    <!-- Close button (Tab index 1) -->
+    <button class="ts-close-btn" id="ts-close" type="button" tabindex="1" aria-label="Close">&#10005;</button>
+
+    <!-- Header area: Title & Date -->
+    <h1 class="ts-title">Today's Sells</h1>
+    <span class="ts-date" id="ts-date"></span>
+
+    <!-- Fixed Column Headers -->
+    <div class="ts-header-wrap">
+      <table class="ts-table ts-header-table">
+        <colgroup>
+          <col class="col-time">
+          <col class="col-product">
+          <col class="col-amount">
+          <col class="col-paid">
+          <col class="col-discount">
+          <col class="col-profit">
+          <col class="col-del">
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Product</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Paid</th>
+            <th scope="col">Discount</th>
+            <th scope="col">Profit</th>
+            <th scope="col" aria-label="Actions"></th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+
+    <!-- White Box: 712px x 280px with 16px horizontal padding -->
+    <div class="ts-box" id="ts-box">
+      <!-- Empty state container -->
+      <div class="ts-empty" id="ts-empty" style="display: none;">No sales today yet</div>
+
+      <!-- Scrollable Table Body -->
+      <div class="ts-scroll-area" id="ts-scroll-area">
+        <table class="ts-table ts-body-table">
+          <colgroup>
+            <col class="col-time">
+            <col class="col-product">
+            <col class="col-amount">
+            <col class="col-paid">
+            <col class="col-discount">
+            <col class="col-profit">
+            <col class="col-del">
+          </colgroup>
+          <tbody id="ts-tbody">
+            <!-- Rows injected by today-sells.js -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Custom thin scrollbar in right gutter -->
+    <div class="ts-sb-track" id="ts-sb-track">
+      <div class="ts-sb-thumb" id="ts-sb-thumb"></div>
+    </div>
+
+    <!-- Footer Summary: 3 equal columns -->
+    <div class="ts-footer" id="ts-footer">
+      <div class="ts-footer-col">
+        <span class="ts-footer-label">Items sold:</span>
+        <span class="ts-footer-value" id="ts-total-items">0</span>
+      </div>
+      <div class="ts-footer-col">
+        <span class="ts-footer-label">Income:</span>
+        <span class="ts-footer-value" id="ts-total-income">0.00 dzd</span>
+      </div>
+      <div class="ts-footer-col">
+        <span class="ts-footer-label">Profit:</span>
+        <span class="ts-footer-value" id="ts-total-profit">0.00 dzd</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="shared/delete-confirm.js"></script>
+  <script src="today-sells.js"></script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+/* =========================================================
+   Today's Sells — Stylesheet
+   Standalone: does not inherit from the main window's CSS.
+   ========================================================= */
+
+/* ---------- Cairo font (Arabic support, self-hosted) ------ */
+@font-face {
+  font-family: 'Cairo';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff2') format('woff2'),
+       url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff')  format('woff');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: 'Cairo';
+  font-style:  normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff2') format('woff2'),
+       url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff')  format('woff');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+/* ---------- Design tokens ---------- */
+:root {
+  --ts-font:        'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ts-card-bg:     #14594e;
+  --ts-accent:      #24b29d;
+  --ts-accent-hover:#2cc4ad;
+  --ts-text-fg:     #0b4a3f;
+  --ts-white:       #ffffff;
+  --ts-del-red:     #c0141c;
+  --ts-del-hover:   #e0242d;
+  --ts-sep:         #24b29d;
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 760px;
+  height: 480px;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--ts-font);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- Card container (760 x 480) ---------- */
+.ts-card {
+  position: relative;
+  width: 760px;
+  height: 480px;
+  background: var(--ts-card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ---------- Close Button (center y = 40px, top: 28px, right: 24px) ---------- */
+.ts-close-btn {
+  position: absolute;
+  top: 28px;
+  right: 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ts-accent);
+  color: var(--ts-white);
+  border: none;
+  font-family: var(--ts-font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+  outline: none;
+  transition: background 150ms ease, transform 100ms ease;
+  z-index: 10;
+}
+
+.ts-close-btn:hover {
+  background: var(--ts-accent-hover);
+}
+
+.ts-close-btn:active {
+  transform: scale(0.92);
+}
+
+/* ---------- Title & Date (vertically centered at y = 40px) ---------- */
+.ts-title {
+  position: absolute;
+  left: 24px;
+  top: 26px; /* 26px + 28px/2 = 40px center */
+  line-height: 28px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ts-white);
+}
+
+.ts-date {
+  position: absolute;
+  right: 64px; /* 24px btn right + 24px btn width + 16px gap = 64px right edge */
+  top: 27px; /* 27px + 26px/2 = 40px center */
+  line-height: 26px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ts-white);
+}
+
+/* ---------- Header Table (y = 76px, height: 30px, x = 40px) ---------- */
+.ts-header-wrap {
+  position: absolute;
+  left: 40px;
+  top: 76px;
+  width: 680px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.ts-table {
+  table-layout: fixed;
+  width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Column widths matching total 680px exactly:
+   Time: 62 | Product: 154 | Amount: 80 | Paid: 112 | Discount: 110 | Profit: 110 | Del: 52 */
+.col-time     { width: 62px; }
+.col-product  { width: 154px; }
+.col-amount   { width: 80px; }
+.col-paid     { width: 112px; }
+.col-discount { width: 110px; }
+.col-profit   { width: 110px; }
+.col-del      { width: 52px; }
+
+.ts-header-table th {
+  height: 30px;
+  padding: 0;
+  text-align: left;
+  vertical-align: middle;
+  color: var(--ts-white);
+  font-size: 18px;
+  font-weight: 400;
+  white-space: nowrap;
+  line-height: 30px;
+}
+
+/* ---------- White Box (x = 24px, y = 114px, 712x280) ---------- */
+.ts-box {
+  position: absolute;
+  left: 24px;
+  top: 114px;
+  width: 712px;
+  height: 280px;
+  border-radius: 12px;
+  background: var(--ts-white);
+  padding: 0 16px; /* table begins at 24+16=40px, width 712-32=680px */
+  overflow: hidden;
+}
+
+/* Scroll area: exactly 5 rows visible (5 * 56px = 280px) */
+.ts-scroll-area {
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.ts-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
+/* Empty State Message */
+.ts-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ts-text-fg);
+}
+
+/* ---------- Table Body Rows ---------- */
+.ts-row {
+  position: relative;
+  height: 56px;
+  max-height: 56px;
+  isolation: isolate;
+}
+
+.ts-body-table td {
+  height: 56px;
+  padding: 0;
+  vertical-align: middle;
+  text-align: left;
+  color: var(--ts-text-fg);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 2px separator line under each row except the last one,
+   starting 11px inside the table's left edge and ending 11px inside its right edge */
+.ts-row:not(:last-child) td:first-child::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 11px;
+  right: 11px;
+  height: 2px;
+  background: var(--ts-sep);
+  pointer-events: none;
+}
+
+/* Specific cell styling */
+.ts-col-time {
+  font-size: 14px;
+}
+
+.ts-col-product {
+  overflow: hidden;
+}
+
+.ts-product-name {
+  display: block;
+  max-width: 146px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 15px;
+  direction: ltr;
+  text-align: left;
+}
+
+.ts-product-name[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+.ts-col-amount,
+.ts-col-paid,
+.ts-col-discount,
+.ts-col-profit {
+  font-size: 14px;
+}
+
+.ts-col-del {
+  text-align: center !important;
+}
+
+/* Delete trash icon button */
+.del-btn,
+.ts-del-btn {
+  background: none;
+  border: none;
+  color: var(--ts-del-red);
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+  outline: none;
+  transition: color 150ms ease, transform 100ms ease, background 150ms ease;
+}
+
+.ts-del-btn:not(.is-armed):hover {
+  color: var(--ts-del-hover);
+}
+
+.ts-del-btn:not(.is-armed):active {
+  transform: scale(0.92);
+}
+
+.ts-del-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ts-del-btn .del-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ts-del-btn .del-label {
+  display: none;
+}
+
+/* In-place Delete armed confirmation button ("Delete?") */
+.ts-del-btn.is-armed {
+  background: #c0141c;
+  color: var(--ts-white);
+  border-radius: 8px;
+  font-family: var(--ts-font);
+  font-size: 12px;
+  font-weight: 700;
+  width: 50px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 24px;
+  transform: none;
+}
+
+.ts-del-btn.is-armed:hover {
+  background: var(--ts-del-hover);
+}
+
+.ts-del-btn.is-armed .del-icon {
+  display: none;
+}
+
+.ts-del-btn.is-armed .del-label {
+  display: inline-block;
+  color: #ffffff;
+}
+
+/* ---------- Custom thin scrollbar in gutter ---------- */
+/* Gutter is x = 736 to 760; track centered at x = 745, width = 6px */
+.ts-sb-track {
+  position: absolute;
+  left: 745px;
+  top: 114px;
+  width: 6px;
+  height: 280px;
+  background: #ffffff;
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.ts-sb-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  background: #5a5a5a;
+  border-radius: 3px;
+  cursor: grab;
+  transition: background 150ms ease;
+  min-height: 24px;
+}
+
+.ts-sb-thumb:hover,
+.ts-sb-thumb.dragging {
+  background: #333333;
+  cursor: grabbing;
+}
+
+/* ---------- Footer (top: 418px, height: 38px, 3 columns of 237px) ---------- */
+.ts-footer {
+  position: absolute;
+  left: 24px;
+  top: 418px;
+  width: 711px; /* 3 * 237px */
+  height: 38px;
+  display: flex;
+}
+
+.ts-footer-col {
+  width: 237px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.ts-footer-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  margin-right: 6px;
+}
+
+.ts-footer-value {
+  color: var(--ts-white);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

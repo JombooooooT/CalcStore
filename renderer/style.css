@@ -1,0 +1,1288 @@
+/* =========================================================
+   CalcStore — Global Stylesheet
+   ========================================================= */
+
+/* ---------- Cairo font (Arabic support, self-hosted) ------ */
+@font-face {
+  font-family: 'Cairo';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff2') format('woff2'),
+       url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff')  format('woff');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: 'Cairo';
+  font-style:  normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff2') format('woff2'),
+       url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff')  format('woff');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+/* ---------- Design Tokens ---------- */
+:root {
+  --font: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --bg:          #002323;
+  --tab:         #14594e;
+  --tab-active:  #ffffff;
+  --close:       #c0141c;
+  --minimize:    #e3f0f8;
+
+  /* Calculator tab */
+  --card-bg:     #14594e;
+  --input-bg:    #24b29d;
+  --add-bg:      #14594e;
+  --add-hover:   #1a6e60;
+
+  --radius-window: 24px;
+  --radius-btn:    50%;
+
+  --win-btn-size:  25px;
+  --tab-btn-size:  45px;
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 800px;
+  height: 600px;
+  overflow: hidden;
+  background: transparent;          /* keep OS compositing transparent */
+  font-family: var(--font);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- App Shell ---------- */
+#app {
+  width: 800px;
+  height: 600px;
+  background: var(--bg);
+  border-radius: var(--radius-window);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: filter 150ms ease;
+}
+
+/* Applied when the product form window is open (modal blur) */
+#app.blurred {
+  filter: blur(5px) brightness(0.75);
+  pointer-events: none;
+}
+
+/* ---------- Top Bar (draggable) ---------- */
+#top-bar {
+  width: 100%;
+  height: 110px;              /* covers window-buttons + tab row */
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ---------- Window Buttons ---------- */
+#win-buttons {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  -webkit-app-region: no-drag;
+  z-index: 10;
+}
+
+.win-btn {
+  width:  var(--win-btn-size);
+  height: var(--win-btn-size);
+  border-radius: var(--radius-btn);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  transition: filter 0.15s ease, transform 0.12s ease;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn:hover  { filter: brightness(1.18); transform: scale(1.08); }
+.win-btn:active { filter: brightness(0.88); transform: scale(0.95); }
+
+#btn-minimize {
+  background: var(--minimize);
+  color: #1a3a4a;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -1px;
+}
+
+#btn-close {
+  background: var(--close);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ---------- Tab Row ---------- */
+#tab-row {
+  position: absolute;
+  /* vertical-center of buttons = 75px from top → center = 75px */
+  top: calc(75px - var(--tab-btn-size) / 2);
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  -webkit-app-region: no-drag;
+}
+
+.tab-btn {
+  width:  var(--tab-btn-size);
+  height: var(--tab-btn-size);
+  border-radius: var(--radius-btn);
+  border: none;
+  cursor: pointer;
+  background: var(--tab);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+  -webkit-app-region: no-drag;
+  position: relative;
+}
+
+.tab-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: #ffffff;
+  stroke: none;
+  transition: fill 0.2s ease;
+  pointer-events: none;
+}
+
+/* Selected state */
+.tab-btn.active {
+  background: var(--tab-active);
+  box-shadow: 0 4px 18px rgba(255,255,255,0.25);
+}
+
+.tab-btn.active svg {
+  fill: var(--tab);
+  stroke: none;
+}
+
+/* Hover (non-active) */
+.tab-btn:not(.active):hover {
+  background: color-mix(in srgb, var(--tab) 80%, #ffffff 20%);
+  transform: scale(1.07);
+}
+
+.tab-btn:not(.active):active {
+  transform: scale(0.95);
+}
+
+/* ---------- Content Sections ---------- */
+#content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.section {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: relative;   /* anchor absolute children */
+  overflow: hidden;
+}
+
+.section.active {
+  display: block;
+}
+
+
+/* =========================================================
+   Calculator Tab  (#section-sales)
+   All y-values are relative to the section top
+   (window y minus 110 px top-bar height).
+   ========================================================= */
+
+/* Metric Cards                                             */
+/* Top: 65px | 225x100px each | Gap: 35px | Left: 27px     */
+.calc-cards {
+  position: absolute;
+  top: 65px;
+  left: 27px;
+  display: flex;
+  gap: 35px;
+}
+
+.calc-card {
+  width: 225px;
+  height: 100px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.card-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  align-self: flex-start;
+  line-height: 1.2;
+}
+
+.card-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  align-self: flex-end;
+  line-height: 1;
+}
+
+/* Calculator Row wrapper                                    */
+/* Row controls start at section-y=255. Labels (22px) +     */
+/* 8px gap above means wrapper top = 255-22-8 = 225px       */
+.calc-row-wrapper {
+  position: absolute;
+  top: 225px;
+  left: 68px;
+  width: 664px;   /* 350+8+120+8+120+8+50 = total row width */
+}
+
+.calc-labels {
+  display: flex;
+  align-items: flex-end;
+  height: 22px;
+  gap: 8px;           /* mirrors calc-row gap exactly */
+  margin-bottom: 8px;
+}
+
+.calc-lbl {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* "Products:" right-aligned over its 350px dropdown */
+.lbl-products {
+  width: 350px;
+  text-align: right;
+}
+
+/* "Price:" centred over its 120px input, 8px gap from dropdown */
+.lbl-price {
+  width: 120px;
+  text-align: center;
+}
+
+/* "Amount:" centred over its 120px input, 8px gap from price */
+.lbl-amount {
+  width: 120px;
+  text-align: center;
+}
+
+.calc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Inline Message (centered at window y = 312px -> section y = 202px) */
+.calc-msg {
+  position: absolute;
+  top: 202px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font);
+  pointer-events: none;
+  z-index: 100;
+  transition: opacity 0.2s ease;
+}
+
+.calc-msg.error {
+  color: #ffb3b3;
+}
+
+.calc-msg.success {
+  color: #59e5d0;
+}
+
+/* Searchable Combobox                                       */
+.calc-dropdown {
+  position: relative;
+  width: 350px;
+  flex-shrink: 0;
+}
+
+.dropdown-combobox-wrap {
+  width: 350px;
+  height: 50px;
+  background: var(--input-bg);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  outline: none;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dropdown-combobox-wrap:focus-within {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.dropdown-combobox-wrap:hover { filter: brightness(1.08); }
+
+.dropdown-arrow {
+  color: #000;
+  font-size: 11px;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+.calc-dropdown.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.dropdown-input::placeholder {
+  color: rgba(0, 45, 38, 0.65);
+  font-weight: 500;
+  font-size: 15px;
+}
+
+/* List look: opens just below the control, 350px, background #14594e, radius 12px, 6px padding, shadow */
+.dropdown-list {
+  position: absolute;
+  top: calc(50px + 6px);
+  left: 0;
+  width: 350px;
+  background: #14594e;
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 500;
+  list-style: none;
+  max-height: 152px; /* at most 3.5 items of 40px (3.5 * 40px + 12px padding) */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #0b4a3f transparent;
+  -webkit-app-region: no-drag;
+}
+
+.dropdown-list::-webkit-scrollbar { width: 6px; }
+.dropdown-list::-webkit-scrollbar-track { background: transparent; }
+.dropdown-list::-webkit-scrollbar-thumb { background: #0b4a3f; border-radius: 3px; }
+
+.dropdown-item {
+  height: 40px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-app-region: no-drag;
+}
+
+.dropdown-item.highlighted,
+.dropdown-item:hover {
+  background: #24b29d;
+}
+
+.dropdown-empty {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Price box: green container holding the number input + fixed "dzd" suffix */
+.price-box {
+  width: 120px;
+  height: 50px;
+  background: var(--input-bg);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 10px;
+  gap: 3px;
+  flex-shrink: 0;
+  transition: box-shadow 0.15s ease;
+}
+
+.price-box:focus-within {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.35);
+}
+
+.price-box input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 15px;
+  font-family: var(--font);
+  text-align: right;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.price-box input::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+
+.price-suffix {
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  font-family: var(--font);
+  white-space: nowrap;
+  flex-shrink: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Amount input (no suffix needed) */
+.calc-input {
+  width: 120px;
+  height: 50px;
+  background: var(--input-bg);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-family: var(--font);
+  text-align: center;
+  outline: none;
+  flex-shrink: 0;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: box-shadow 0.15s ease;
+}
+
+.calc-input::placeholder { color: rgba(255,255,255,0.6); }
+.calc-input:focus         { box-shadow: 0 0 0 2px rgba(255,255,255,0.35); }
+
+/* Add (+) button                                            */
+.calc-add-btn {
+  width: 50px;
+  height: 50px;
+  background: var(--add-bg);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.calc-add-btn:hover  { background: var(--add-hover); }
+.calc-add-btn:active { transform: scale(0.92); }
+
+/* Discount Row (inside calc-row-wrapper, below calc-row)    */
+/* Uses the same 350px + 8px-gap column structure as calc-row */
+/* so the discount input is always aligned with price-input.  */
+.calc-discount-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;              /* same gap as calc-row              */
+  margin-top: 12px;      /* 12px below the calc-row           */
+}
+
+/* "Discount:" label — 350px wide (matches dropdown column), */
+/* right-aligned so text ends at same x as "Products:" above */
+.lbl-discount {
+  width: 350px;           /* same as .calc-dropdown / .lbl-products */
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* Date control (bottom-left)                                */
+/* Centred at section-y=410 -> top = 410, translateY(-50%)  */
+.calc-date-container {
+  position: absolute;
+  left: 58px;
+  top: 410px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.calc-date-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  font-family: var(--font);
+  cursor: pointer;
+  outline: none;
+  -webkit-app-region: no-drag;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.calc-date-btn:hover {
+  text-decoration: underline;
+  text-decoration-color: #24b29d;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.calc-date-btn:focus-visible {
+  outline: 2px solid #59e5d0;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.calc-date-btn.date-custom {
+  color: #59e5d0;
+}
+
+.calc-date-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  color-scheme: dark;
+}
+
+/* "Today's Sells" button (bottom-right)                     */
+/* top: 390px | right edge: 45px from window right          */
+.calc-sells-btn {
+  position: absolute;
+  top: 390px;
+  right: 45px;
+  width: 180px;
+  height: 50px;
+  background: var(--input-bg);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.calc-sells-btn:hover  { filter: brightness(1.1); }
+.calc-sells-btn:active { transform: scale(0.97); }
+
+
+/* =========================================================
+   Product List Tab  (#section-products)
+   All y-values are relative to the section top
+   (window y minus 110 px top-bar height).
+   ========================================================= */
+
+/* New tokens */
+:root {
+  --pl-row-text:  #0b4a3f;
+  --pl-sep:       #24b29d;
+  --pl-del:       #c0141c;
+  --pl-del-hover: #e04040;
+  /* Selection highlight: #59e5d0 at 82% opacity against white    */
+  /* (slightly softer than full #59e5d0 to avoid over-brightness) */
+  --row-selected: rgba(89, 229, 208, 0.82);
+  --row-hover:    rgba(89, 229, 208, 0.12);
+}
+
+/* ---- Shared colgroup column widths (700 px total) -------- */
+/* id 72 | Name 210 | Buy 161 | Sell 138 | Margin 67 | Del 52 */
+.col-id     { width: 72px; }
+.col-name   { width: 210px; }
+.col-buy    { width: 161px; }
+.col-sell   { width: 138px; }
+.col-margin { width: 67px; }
+.col-del    { width: 52px; }
+
+/* Shared table base */
+.pl-table {
+  table-layout: fixed;
+  width: 700px;
+  border-collapse: collapse;
+}
+
+/* Body table uses separate borders so position:relative works on <tr> */
+.pl-body-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* ---- Column header (fixed, above the white box) ---------- */
+/* Wrapper: left=28, padding-left=20 so table starts at x=48  */
+/* Centre at section-y=53 -> top=53, translateY(-50%)         */
+.pl-header-wrap {
+  position: absolute;
+  top: 53px;
+  left: 28px;
+  transform: translateY(-50%);
+  padding-left: 20px;
+  width: 744px;
+  pointer-events: none;
+}
+
+.pl-header-table th {
+  font-size: 22px;
+  font-weight: 400;
+  color: #fff;
+  text-align: left;
+  padding: 0 0 0 6px;
+  white-space: nowrap;
+  overflow: visible;
+  font-family: var(--font);
+}
+
+/* ---- White list box ---------------------------------------- */
+/* left=28, top=82, width=744, height=323                       */
+.pl-list-box {
+  position: absolute;
+  left: 28px;
+  top: 82px;
+  width: 744px;
+  height: 323px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Scroll area: hides native scrollbar, adds left padding      */
+.pl-scroll-area {
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding-left: 20px;
+  /* Hide native scrollbar */
+  scrollbar-width: none;
+}
+.pl-scroll-area::-webkit-scrollbar { display: none; }
+
+/* ---- Body table rows --------------------------------------- */
+.pl-body-table td {
+  color: var(--pl-row-text);
+  font-size: 15px;
+  font-family: var(--font);
+  padding: 0 6px;
+  height: 55px;
+  box-sizing: border-box;
+  vertical-align: middle;
+  white-space: nowrap;
+  /* Lifted z-index for cell content, but no position: relative so 
+     pseudo-elements on td:first-child can be sized relative to the tr */
+  z-index: 1;
+}
+
+/* Arabic name column: bold, larger, Cairo handles RTL glyphs  */
+.pl-name {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: left;
+  direction: ltr;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pl-name span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Delete column: centre the icon button                        */
+.pl-body-table .col-del { text-align: center; }
+
+/* ---- Row selection highlight ------------------------------- */
+.pl-row {
+  position: relative;
+  isolation: isolate; /* Creates stacking context so z-index:-1 stays inside row */
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+/* Highlight drawn via pseudo-element on the first td to avoid Chrome bugs 
+   that create phantom cells when drawing ::before on a tr. */
+.pl-row td:first-child::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -7px;
+  right: -7px;
+  border-radius: 12px;
+  background: transparent;
+  z-index: -1;          /* behind cell content, but kept above white bg by isolation */
+  pointer-events: none; /* clicks fall through to cells */
+  transition: background 150ms ease;
+}
+
+/* Faint hover tint on unselected rows */
+.pl-row:not(.selected):hover td:first-child::before {
+  background: var(--row-hover);
+}
+
+/* Selected row highlight */
+.pl-row.selected td:first-child::before {
+  background: var(--row-selected);
+}
+
+/* Row separator line: drawn as ::after on the first td, 
+   spanning the row but inset by 11px on both sides. */
+.pl-row:not(:last-child) td:first-child::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -9px; /* x=20-9=11px from box left */
+  right: -13px; /* x=720+13=733, which is 744-11px from box right */
+  border-bottom: 2px solid var(--pl-sep);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ---- Delete button ----------------------------------------- */
+.del-btn,
+.pl-del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--pl-del);
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+  outline: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.pl-del-btn:not(.is-armed):hover  { color: var(--pl-del-hover); }
+.pl-del-btn:not(.is-armed):active { transform: scale(0.9); }
+
+.pl-del-btn .del-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pl-del-btn .del-label {
+  display: none;
+}
+
+/* In-place Delete armed confirmation state ("Delete?") */
+.pl-del-btn.is-armed {
+  background: #c0141c;
+  color: #ffffff;
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  width: 50px;
+  height: 24px;
+  padding: 0;
+  line-height: 24px;
+  transform: none;
+}
+
+.pl-del-btn.is-armed:hover {
+  background: var(--pl-del-hover);
+}
+
+.pl-del-btn.is-armed .del-icon {
+  display: none;
+}
+
+.pl-del-btn.is-armed .del-label {
+  display: inline-block;
+  color: #ffffff;
+}
+
+/* Empty State Message */
+.pl-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0b4a3f;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Negative profit margin */
+.pl-margin-neg {
+  color: #c0141c !important;
+  font-weight: 700;
+}
+
+/* ---- Custom thin scrollbar --------------------------------- */
+/* Track: just right of the white box (x = 28+744+2 = 774)     */
+.pl-sb-track {
+  position: absolute;
+  left: 774px;
+  top: 82px;
+  width: 6px;
+  height: 323px;
+  background: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.pl-sb-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  background: #5a5a5a;
+  border-radius: 3px;
+  cursor: grab;
+  transition: background 0.15s ease;
+  min-height: 24px;
+}
+
+.pl-sb-thumb:hover,
+.pl-sb-thumb.dragging { background: #333; cursor: grabbing; }
+
+/* ---- "Add product" + "Edit product" buttons ---------------- */
+/* Add:  left=549, Edit: left=356 (549 - 185 - 8), top=427     */
+.pl-add-btn {
+  position: absolute;
+  left: 549px;
+  top: 427px;
+  width: 185px;
+  height: 38px;
+  background: var(--input-bg);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.pl-add-btn:not(:disabled):hover  { filter: brightness(1.1); }
+.pl-add-btn:not(:disabled):active { transform: scale(0.97); }
+
+/* "Edit product" — same size/style, shifted left of "Add"      */
+.pl-edit-btn {
+  left: 356px;   /* 549 - 185 - 8 */
+}
+
+/* Disabled state: muted colour, no pointer, no interactions     */
+.pl-add-btn:disabled {
+  background: color-mix(in srgb, var(--input-bg) 45%, #002323 55%);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+  filter: none;
+}
+
+
+/* =========================================================
+   Stats Tab  (#section-stats)
+   All y-values are relative to the section top
+   (window y minus 110 px top-bar height).
+   ========================================================= */
+
+/* New Stats tokens */
+:root {
+  --st-accent:       #59e5d0;
+  --st-card-bg:      #14594e;
+  --st-pill-bg:      #14594e;
+  --st-pill-active:  #24b29d;
+  --st-table-text:   #0b4a3f;
+  --st-table-sep:    #24b29d;
+}
+
+/* ---- Pill radio groups ------------------------------------ */
+/* Hide the real radio inputs, style labels as visible pills   */
+.st-period-pills,
+.st-metric-pills {
+  position: absolute;
+  display: flex;
+  gap: 12px;
+  -webkit-app-region: no-drag;
+}
+
+/* Period pills: window-y=120 → section-y=10, left=28         */
+.st-period-pills {
+  left: 28px;
+  top: 10px;
+}
+
+/* Metric pills: window-y=120 → section-y=10                  */
+/* 2 pills of 125px + 12px gap = 262px total, right at 772    */
+/* → left = 772 - 262 = 510                                   */
+.st-metric-pills {
+  left: 510px;
+  top: 10px;
+}
+
+/* Visually hide radio inputs but keep them focusable          */
+.st-period-pills input[type="radio"],
+.st-metric-pills input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+/* Shared pill label style                                     */
+.st-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--st-pill-bg);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.18s ease, filter 0.15s ease, transform 0.1s ease;
+  -webkit-app-region: no-drag;
+}
+
+/* Wider pills for "By profit" / "By quantity"                 */
+.st-pill-wide {
+  width: 125px;
+}
+
+/* Selected pill */
+input[type="radio"]:checked + .st-pill {
+  background: var(--st-pill-active);
+}
+
+/* Hover on unselected */
+input[type="radio"]:not(:checked) + .st-pill:hover {
+  filter: brightness(1.25);
+}
+
+/* Keyboard focus ring */
+input[type="radio"]:focus-visible + .st-pill {
+  box-shadow: 0 0 0 2px var(--st-accent);
+}
+
+/* ---- Chart Card ------------------------------------------- */
+/* window (28, 170) → section (28, 60), 470 x 350              */
+.st-chart-card {
+  position: absolute;
+  left: 28px;
+  top: 60px;
+  width: 470px;
+  height: 350px;
+  background: var(--st-card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HTML Legend row above canvas: 20px tall, 12px gap to canvas */
+.st-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 20px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.st-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.st-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.st-legend-income {
+  background-color: var(--st-accent);
+}
+
+.st-legend-profit {
+  background-color: #ffffff;
+}
+
+.st-legend-text {
+  color: #ffffff;
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Chart canvas wrapper — 438 x 286                             */
+.st-chart-wrap {
+  position: relative;
+  width: 438px;
+  height: 286px;
+  flex-shrink: 0;
+}
+
+/* "Can't display data of a day!" & "No sales in this period"  */
+.st-day-msg {
+  display: none;           /* shown by JS when Day / empty */
+  margin: auto;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font);
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---- Top 5 Products Table --------------------------------- */
+/* window (510, 170) → section (510, 60), 262 x 350            */
+.st-top5-box {
+  position: absolute;
+  left: 510px;
+  top: 60px;
+  width: 262px;
+  height: 350px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.st-top5-table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Column widths: Name ~150px, Value ~112px                    */
+.st-col-name { width: 150px; }
+.st-col-val  { width: 112px; }
+
+/* Header row (40px) */
+.st-top5-table thead th {
+  height: 40px;
+  color: var(--st-table-text);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  text-align: left;
+  padding: 0 16px;
+  vertical-align: middle;
+  position: relative;
+}
+
+/* Separator under header — inset 11px each side (262 - 22 = 240px) */
+.st-top5-table thead th:first-child::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 11px;
+  width: 240px;
+  border-bottom: 2px solid var(--st-table-sep);
+  pointer-events: none;
+}
+
+/* Only the first th draws the separator to avoid double lines */
+.st-top5-table thead th:last-child::after {
+  display: none;
+}
+
+/* Body rows — each 62px tall (5 x 62 = 310px, total 350px)    */
+.st-top5-table tbody td {
+  height: 62px;
+  color: var(--st-table-text);
+  font-size: 15px;
+  font-family: var(--font);
+  font-weight: 400;
+  text-align: left;
+  padding: 0 16px;
+  vertical-align: middle;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* Name column: bold, single line with ellipsis                */
+.st-top5-table tbody td:first-child {
+  font-size: 16px;
+  font-weight: 700;
+  max-width: 150px;
+}
+
+.st-top5-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Value column: tabular nums for clean alignment              */
+.st-top5-val {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Row separators (all rows except the last rendered row)      */
+/* Drawn via ::after on the first td, inset 11px each side     */
+.st-top5-table tbody tr:not(:last-child) td:first-child::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 11px;
+  width: 240px;
+  border-bottom: 2px solid var(--st-table-sep);
+  pointer-events: none;
+}
+
+/* Empty state row inside table body                           */
+.st-empty-table-cell {
+  height: 310px !important;
+  text-align: center !important;
+  color: var(--st-table-text);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  vertical-align: middle !important;
+  padding: 0 !important;
+}
+
+/* ---- Bottom Summary Line ---------------------------------- */
+/* window y=538 → section y=428, 30px tall (bottom margin 32px)*/
+/* 3 columns of 248px each: left 28, 276, 524                  */
+.st-summary {
+  position: absolute;
+  left: 28px;
+  top: 428px;
+  width: 744px;           /* 28 to 772 */
+  height: 30px;
+  display: flex;
+}
+
+.st-summary-col {
+  width: 248px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.st-summary-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  font-weight: 400;
+  font-family: var(--font);
+}
+
+.st-summary-value {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+}
+
