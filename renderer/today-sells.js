@@ -65,16 +65,6 @@ const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
     c27.114,0.033,51.278,17.116,60.352,42.667H174.315z"/>
 </svg>`;
 
-// ── Helper: Escape HTML string ─────────────────────────────
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 // ── DOM Elements ───────────────────────────────────────────
 const tbodyEl       = document.getElementById('ts-tbody');

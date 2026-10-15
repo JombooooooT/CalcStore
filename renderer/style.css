@@ -463,52 +463,6 @@ html, body {
   -webkit-user-select: none;
 }
 
-/* Price box: green container holding the number input + fixed "dzd" suffix */
-.price-box {
-  width: 120px;
-  height: 50px;
-  background: var(--input-bg);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px 0 10px;
-  gap: 3px;
-  flex-shrink: 0;
-  transition: box-shadow 0.15s ease;
-}
-
-.price-box:focus-within {
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.35);
-}
-
-.price-box input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #fff;
-  font-size: 15px;
-  font-family: var(--font);
-  text-align: right;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.price-box input::placeholder {
-  color: rgba(255,255,255,0.6);
-}
-
-.price-suffix {
-  color: rgba(255,255,255,0.75);
-  font-size: 13px;
-  font-family: var(--font);
-  white-space: nowrap;
-  flex-shrink: 0;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
 
 /* Amount input (no suffix needed) */
 .calc-input {
@@ -1226,6 +1180,12 @@ input[type="radio"]:focus-visible + .st-pill {
 .st-top5-val {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Negative profit in Top 5 table */
+.st-val-neg {
+  color: #c0141c !important;
+  font-weight: 700;
 }
 
 /* Row separators (all rows except the last rendered row)      */

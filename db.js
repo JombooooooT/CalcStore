@@ -3,9 +3,10 @@
    ========================================================= */
 
 const Database = require('better-sqlite3');
-const { app, dialog } = require('electron');
+const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const stats = require('./stats.js');
 
 let db = null;
 
@@ -24,14 +25,7 @@ function initDb() {
   const dbPath = path.join(dbDir, 'sales.db');
   console.log('Database path:', dbPath);
 
-  try {
-    db = new Database(dbPath);
-  } catch (err) {
-    console.error('DATABASE OPEN ERROR:', err);
-    dialog.showErrorBox('Database Error', `Failed to open database at ${dbPath}:\n${err.message}`);
-    app.quit();
-    throw err;
-  }
+  db = new Database(dbPath);
 
   // Enforce WAL mode and foreign key constraints
   db.pragma('foreign_keys = ON');
@@ -140,7 +134,6 @@ function migrate(dbPath) {
     } catch (err) {
       db.pragma('foreign_keys = ON');
       console.error('MIGRATION V2 FAILED:', err);
-      dialog.showErrorBox('Database Migration Error', `Failed to migrate database to v2:\n${err.message}`);
       throw err;
     }
 
@@ -625,6 +618,10 @@ function seedSalesIfEmpty() {
   seedTx();
 }
 
+function getStats(period, todayStr) {
+  return stats.getStats(db, period, todayStr);
+}
+
 module.exports = {
   initDb,
   listProducts,
@@ -633,10 +630,10 @@ module.exports = {
   deleteProduct,
   addSale,
   getDayStats,
+  getStats,
   listSales,
   deleteSale,
   seedIfEmpty,
   seedSalesIfEmpty,
-  getDb: () => db,
 };
 

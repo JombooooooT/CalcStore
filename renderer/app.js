@@ -114,9 +114,13 @@ async function loadDayCards() {
   try {
     const todayStr = getLocalDateStr(new Date());
     const stats = await window.api.getDayStats(todayStr);
-    if (cardItemsEl)  cardItemsEl.textContent = String(stats.items || 0);
-    if (cardIncomeEl) cardIncomeEl.textContent = formatMoney(stats.income || 0);
-    if (cardProfitEl) cardProfitEl.textContent = formatMoney(stats.profit || 0);
+    if (!stats || stats.ok === false) {
+      // Leave cards unchanged on failure
+      return;
+    }
+    if (cardItemsEl)  cardItemsEl.textContent = String(stats.items ?? 0);
+    if (cardIncomeEl) cardIncomeEl.textContent = formatMoney(stats.income ?? 0);
+    if (cardProfitEl) cardProfitEl.textContent = formatMoney(stats.profit ?? 0);
 
     requestAnimationFrame(() => {
       if (cardItemsEl)  fitCardValue(cardItemsEl);
@@ -183,6 +187,9 @@ function handleDayRollover() {
     lastCheckedDay = currentDay;
     updateDateUI();
     loadDayCards();
+    if (typeof invalidateStatsCache === 'function') {
+      invalidateStatsCache();
+    }
   }
 }
 
@@ -269,8 +276,11 @@ const dropdownList      = document.getElementById('dropdown-list');
 async function loadCalculatorProducts() {
   try {
     const list = await window.api.listProducts();
+    if (!list || !Array.isArray(list)) {
+      return;
+    }
     // Active products sorted by name
-    calcProducts = (list || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    calcProducts = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
     // Check if selected product was updated or deleted
     if (selectedProduct) {
@@ -699,7 +709,7 @@ if (addSaleBtn) {
 
 // ── Product List Tab ───────────────────────────────────────
 
-// Trash-can icon — sourced from renderer/icons/trash.svg
+// Trash-can icon — inline SVG
 const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
   width="20" height="20" fill="currentColor">
   <path d="M448,85.333h-66.133C371.66,35.703,328.002,0.064,277.333,0h-42.667
@@ -761,7 +771,10 @@ function renderProductList(products) {
   plDeleteConfirm.disarm();
 
   if (!products || products.length === 0) {
-    if (plEmptyEl) plEmptyEl.style.display = 'flex';
+    if (plEmptyEl) {
+      plEmptyEl.textContent = 'No products yet. Click Add product to start.';
+      plEmptyEl.style.display = 'flex';
+    }
     scrollArea.style.display = 'none';
     sbTrack.style.display    = 'none';
     _editBtn.disabled        = true;
@@ -782,9 +795,11 @@ function renderProductList(products) {
     tr.className = 'pl-row';
     tr.dataset.id = String(p.id);
 
+    const safeName = window.escapeHtml ? window.escapeHtml(p.name) : p.name;
+
     tr.innerHTML =
       `<td>${formatProductId(p.id)}</td>` +
-      `<td class="pl-name"><span dir="auto" title="${p.name}">${p.name}</span></td>` +
+      `<td class="pl-name"><span dir="auto" title="${safeName}">${safeName}</span></td>` +
       `<td>${Number(p.buy_price).toFixed(2)} dzd</td>` +
       `<td>${Number(p.sell_price).toFixed(2)} dzd</td>` +
       `<td${marginCls}>${marginStr}</td>` +
@@ -856,16 +871,33 @@ document.addEventListener('mouseup', () => {
   if (_plDrag) { _plDrag = false; sbThumb.classList.remove('dragging'); }
 });
 
+function renderProductListError(msg) {
+  if (plEmptyEl) {
+    plEmptyEl.textContent = msg;
+    plEmptyEl.style.display = 'flex';
+  }
+  scrollArea.style.display = 'none';
+  sbTrack.style.display    = 'none';
+  _editBtn.disabled        = true;
+}
+
 // ── Load Products from DB ──────────────────────────────────
 async function loadProducts(selectId = null) {
   try {
-    currentProducts = await window.api.listProducts();
+    const res = await window.api.listProducts();
+    if (!res || !Array.isArray(res)) {
+      currentProducts = [];
+      renderProductListError("Couldn't load products");
+      return;
+    }
+    currentProducts = res;
+    renderProductList(currentProducts);
   } catch (err) {
     console.error('Failed to load products:', err);
     currentProducts = [];
+    renderProductListError("Couldn't load products");
+    return;
   }
-
-  renderProductList(currentProducts);
 
   if (selectId) {
     const targetRow = plTbody.querySelector(`tr[data-id="${selectId}"]`);
@@ -931,12 +963,18 @@ _editBtn.addEventListener('click', () => {
 window.api.onProductsChanged((affectedId) => {
   loadProducts(affectedId);
   loadCalculatorProducts();
+  if (typeof invalidateStatsCache === 'function') {
+    invalidateStatsCache();
+  }
 });
 
 // Refresh today's cards when sales change (e.g. sale added or deleted)
 if (window.api && typeof window.api.onSalesChanged === 'function') {
   window.api.onSalesChanged(() => {
     loadDayCards();
+    if (typeof invalidateStatsCache === 'function') {
+      invalidateStatsCache();
+    }
   });
 }
 
@@ -950,115 +988,9 @@ setupMidnightTimer();
 
 // ── Stats Tab ──────────────────────────────────────────────
 
-/* ---- Temporary debug flag: set to true to test empty state - */
-const DEBUG_EMPTY = false;
-
-/* ---- Helper: generate MM/DD date labels ending yesterday -- */
-function generateDateLabels(count) {
-  const labels = [];
-  const now = new Date();
-  for (let i = count; i >= 1; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    labels.push(`${mm}/${dd}`);
-  }
-  return labels;
-}
-
-/* ---- Sample data ------------------------------------------ */
-/* All sample values are static. Replace with real DB results.  */
-const statsData = {
-  day: {
-    hasData: true,
-    topByProfit: [
-      { name: '\u0643\u0635\u0628\u0631 \u0645\u0631\u062d\u064a', value: 1800 },
-      { name: '\u0637\u0645\u0627\u0637\u0645',                   value: 1400 },
-      { name: '\u0628\u0637\u0627\u0637\u0627',                   value: 1100 },
-      { name: '\u0628\u0635\u0644',                               value: 900 },
-      { name: '\u062c\u0632\u0631',                               value: 650 },
-    ],
-    topByQty: [
-      { name: '\u0628\u0637\u0627\u0637\u0627',                   value: 38 },
-      { name: '\u0637\u0645\u0627\u0637\u0645',                   value: 34 },
-      { name: '\u0643\u0635\u0628\u0631 \u0645\u0631\u062d\u064a', value: 28 },
-      { name: '\u062c\u0632\u0631',                               value: 22 },
-      { name: '\u0628\u0635\u0644',                               value: 18 },
-    ],
-    marginPct: 45,
-    totalDiscounts: 300,
-  },
-
-  week: {
-    hasData: true,
-    labels: generateDateLabels(7),
-    income: [12400, 15800, 13200, 16254, 14700, 17300, 15100],
-    profit: [ 5900,  7500,  6400,  8002,  7100,  8400,  7200],
-    topByProfit: [
-      { name: '\u0643\u0635\u0628\u0631 \u0645\u0631\u062d\u064a', value: 3200 },
-      { name: '\u0637\u0645\u0627\u0637\u0645',                   value: 2800 },
-      { name: '\u0628\u0637\u0627\u0637\u0627',                   value: 2100 },
-      { name: '\u0628\u0635\u0644',                               value: 1700 },
-      { name: '\u062c\u0632\u0631',                               value: 1200 },
-    ],
-    topByQty: [
-      { name: '\u0628\u0637\u0627\u0637\u0627',                   value: 72 },
-      { name: '\u0637\u0645\u0627\u0637\u0645',                   value: 65 },
-      { name: '\u0643\u0635\u0628\u0631 \u0645\u0631\u062d\u064a', value: 58 },
-      { name: '\u062c\u0632\u0631',                               value: 42 },
-      { name: '\u0628\u0635\u0644',                               value: 35 },
-    ],
-    marginPct: 49,
-    bestDay: (() => {
-      const d = new Date(); d.setDate(d.getDate() - 3);
-      return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-    })(),
-    totalDiscounts: 1200,
-  },
-
-  month: {
-    hasData: true,
-    labels: generateDateLabels(30),
-    /* Real retail profile: gentle growth with weekend bumps, profit always ~47-49% */
-    income: [
-      11800, 12400, 12100, 12900, 14200, 15500, 13400,
-      12600, 13100, 12800, 13700, 15100, 16400, 14100,
-      13500, 14200, 13900, 14800, 16300, 17600, 15200,
-      14400, 15100, 14700, 15800, 17200, 18500, 16100,
-      15300, 16200,
-    ],
-    profit: [
-      5600,  5900,  5700,  6100,  6800,  7400,  6300,
-      6000,  6200,  6100,  6500,  7200,  7900,  6700,
-      6400,  6800,  6600,  7100,  7800,  8400,  7300,
-      6900,  7200,  7000,  7600,  8300,  8900,  7700,
-      7300,  7800,
-    ],
-    topByProfit: [
-      { name: '\u0643\u0635\u0628\u0631 \u0645\u0631\u062d\u064a', value: 9600 },
-      { name: '\u0637\u0645\u0627\u0637\u0645',                   value: 8200 },
-      { name: '\u0628\u0637\u0627\u0637\u0627',                   value: 6800 },
-      { name: '\u0628\u0635\u0644',                               value: 5500 },
-      { name: '\u062c\u0632\u0631',                               value: 4100 },
-    ],
-    topByQty: [
-      { name: '\u0628\u0637\u0627\u0637\u0627',                   value: 210 },
-      { name: '\u0637\u0645\u0627\u0637\u0645',                   value: 195 },
-      { name: '\u0643\u0635\u0628\u0631 \u0645\u0631\u062d\u064a', value: 170 },
-      { name: '\u062c\u0632\u0631',                               value: 130 },
-      { name: '\u0628\u0635\u0644',                               value: 105 },
-    ],
-    marginPct: 52,
-    bestDay: (() => {
-      const d = new Date(); d.setDate(d.getDate() - 4);
-      return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-    })(),
-    totalDiscounts: 4850,
-  },
-};
-
-/* ---- DOM references --------------------------------------- */
+/* ---- DOM references (declared before use) ---------------- */
+const _secStats      = document.getElementById('section-stats');
+const _stChartCard   = document.getElementById('st-chart-card');
 const _stChartWrap   = document.getElementById('st-chart-wrap');
 const _stDayMsg      = document.getElementById('st-day-msg');
 const _stEmptyMsg    = document.getElementById('st-empty-msg');
@@ -1070,11 +1002,11 @@ const _stBestDay     = document.getElementById('st-best-day');
 const _stBestDayCol  = document.getElementById('st-best-day-col');
 const _stDiscounts   = document.getElementById('st-discounts');
 
-/* ---- Chart.js — create on demand when visible, animate on updates - */
+/* ---- Chart.js — single instance updated on demand -------- */
 const _appFont = "'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 let _stChart = null;
 
-function getOrInitChart(data, period) {
+function getOrInitChart(labels, income, profit, period) {
   if (_stChart) return _stChart;
   const canvas = document.getElementById('st-chart-canvas');
   if (!canvas) return null;
@@ -1084,11 +1016,11 @@ function getOrInitChart(data, period) {
   _stChart = new Chart(canvas, {
     type: 'line',
     data: {
-      labels: data ? data.labels : [],
+      labels: labels || [],
       datasets: [
         {
           label: 'Income',
-          data: data ? data.income : [],
+          data: income || [],
           borderColor: '#59e5d0',
           backgroundColor: 'rgba(89,229,208,0.12)',
           borderWidth: initWidth,
@@ -1100,7 +1032,7 @@ function getOrInitChart(data, period) {
         },
         {
           label: 'Profit',
-          data: data ? data.profit : [],
+          data: profit || [],
           borderColor: '#ffffff',
           backgroundColor: 'transparent',
           borderWidth: initWidth,
@@ -1184,28 +1116,135 @@ function getOrInitChart(data, period) {
   return _stChart;
 }
 
-/* ---- renderStats() — single function to update everything - */
-function renderStats() {
-  const period = document.querySelector('input[name="period"]:checked').value;
-  const metric = document.querySelector('input[name="top-metric"]:checked').value;
-  const rawData = statsData[period];
-  const isEmpty = DEBUG_EMPTY || (rawData && rawData.hasData === false);
+/* ---- Cache & Request Tracking ---------------------------- */
+const statsCache = {
+  day: null,
+  week: null,
+  month: null,
+};
+let statsRequestId = 0;
 
-  const isProfit = metric === 'profit';
+function getSelectedPeriod() {
+  const el = document.querySelector('input[name="period"]:checked');
+  return el ? el.value : 'week';
+}
+
+function getSelectedMetric() {
+  const el = document.querySelector('input[name="top-metric"]:checked');
+  return el ? el.value : 'profit';
+}
+
+function formatChartLabels(labels) {
+  if (!labels || !Array.isArray(labels)) return [];
+  return labels.map((l) => {
+    const parts = l.split('-');
+    if (parts.length >= 3) {
+      return `${parts[1]}/${parts[2]}`;
+    }
+    return l;
+  });
+}
+
+function renderTop5Empty() {
+  _stTop5Tbody.innerHTML = `
+    <tr class="st-empty-table-row">
+      <td colspan="2" class="st-empty-table-cell">No sales yet</td>
+    </tr>
+  `;
+}
+
+function renderTop5Table(data) {
+  const isProfit = getSelectedMetric() === 'profit';
   _stTop5Header.textContent = isProfit ? 'Profit' : 'Quantity';
 
-  /* ── 1. Empty State ─────────────────────────────────────── */
-  if (isEmpty) {
+  if (!data || !data.hasData) {
+    renderTop5Empty();
+    return;
+  }
+
+  const items = isProfit ? (data.topByProfit || []) : (data.topByQty || []);
+  if (items.length === 0) {
+    renderTop5Empty();
+    return;
+  }
+
+  _stTop5Tbody.innerHTML = '';
+  items.forEach((item) => {
+    const tr = document.createElement('tr');
+    let valStr;
+    let isNeg = false;
+    if (isProfit) {
+      valStr = `${Number(item.value).toFixed(2)} dzd`;
+      if (Number(item.value) < 0) {
+        isNeg = true;
+      }
+    } else {
+      valStr = parseFloat(Number(item.value).toFixed(4)).toString();
+    }
+
+    const safeName = window.escapeHtml ? window.escapeHtml(item.name) : item.name;
+    const valClass = isNeg ? 'st-top5-val st-val-neg' : 'st-top5-val';
+
+    tr.innerHTML =
+      `<td><span class="st-top5-name" dir="auto" title="${safeName}">${safeName}</span></td>` +
+      `<td><span class="${valClass}">${valStr}</span></td>`;
+    _stTop5Tbody.appendChild(tr);
+  });
+}
+
+function showStatsLoading(period) {
+  _stChartWrap.style.display = 'none';
+  if (_stLegendRow) _stLegendRow.style.display = 'none';
+  _stDayMsg.style.display    = 'none';
+  if (_stEmptyMsg) _stEmptyMsg.style.display = 'none';
+
+  renderTop5Empty();
+
+  _stMargin.textContent    = '—';
+  _stDiscounts.textContent = '—';
+  if (period === 'day') {
+    _stBestDayCol.style.visibility = 'hidden';
+  } else {
+    _stBestDayCol.style.visibility = 'visible';
+    _stBestDay.textContent = '—';
+  }
+}
+
+function showStatsFailure(period) {
+  _stChartWrap.style.display = 'none';
+  if (_stLegendRow) _stLegendRow.style.display = 'none';
+  if (_stEmptyMsg) _stEmptyMsg.style.display = 'none';
+
+  _stDayMsg.textContent = "Couldn't load statistics";
+  _stDayMsg.style.display = 'block';
+
+  renderTop5Empty();
+
+  _stMargin.textContent    = '—';
+  _stDiscounts.textContent = '—';
+  if (period === 'day') {
+    _stBestDayCol.style.visibility = 'hidden';
+  } else {
+    _stBestDayCol.style.visibility = 'visible';
+    _stBestDay.textContent = '—';
+  }
+}
+
+function displayStats(data, period) {
+  const isProfit = getSelectedMetric() === 'profit';
+  _stTop5Header.textContent = isProfit ? 'Profit' : 'Quantity';
+
+  /* ── 1. Empty State (no sales) ──────────────────────────── */
+  if (!data || data.hasData === false) {
     _stChartWrap.style.display = 'none';
     if (_stLegendRow) _stLegendRow.style.display = 'none';
     _stDayMsg.style.display    = 'none';
-    if (_stEmptyMsg) _stEmptyMsg.style.display  = 'block';
+    if (_stEmptyMsg) {
+      _stEmptyMsg.textContent = 'No sales in this period';
+      _stEmptyMsg.style.display = 'block';
+    }
 
-    _stTop5Tbody.innerHTML = `
-      <tr class="st-empty-table-row">
-        <td colspan="2" class="st-empty-table-cell">No sales yet</td>
-      </tr>
-    `;
+    renderTop5Empty();
 
     _stMargin.textContent    = '—';
     _stDiscounts.textContent = '—';
@@ -1226,62 +1265,110 @@ function renderStats() {
   if (period === 'day') {
     _stChartWrap.style.display = 'none';
     if (_stLegendRow) _stLegendRow.style.display = 'none';
-    _stDayMsg.style.display    = 'block';
+    _stDayMsg.textContent = "Can't display data of a day!";
+    _stDayMsg.style.display = 'block';
   } else {
+    _stDayMsg.style.display = 'none';
     _stChartWrap.style.display = 'block';
     if (_stLegendRow) _stLegendRow.style.display = 'flex';
-    _stDayMsg.style.display    = 'none';
 
     if (_secStats.classList.contains('active')) {
-      const chart = getOrInitChart(rawData, period);
+      const formattedLabels = formatChartLabels(data.labels);
+      const chart = getOrInitChart(formattedLabels, data.income, data.profit, period);
       if (chart) {
         const lineWidth = period === 'month' ? 2 : 3;
         chart.data.datasets[0].borderWidth = lineWidth;
         chart.data.datasets[1].borderWidth = lineWidth;
-        chart.data.labels = rawData.labels;
-        chart.data.datasets[0].data = rawData.income;
-        chart.data.datasets[1].data = rawData.profit;
-        chart.update(); // Smooth Chart.js morphing animation on period switch
+        chart.data.labels = formattedLabels;
+        chart.data.datasets[0].data = data.income;
+        chart.data.datasets[1].data = data.profit;
+        chart.update(); // Smooth Chart.js morphing animation
       }
     }
   }
 
   /* -- Top 5 Table -- */
-  const items = isProfit ? (rawData.topByProfit || []) : (rawData.topByQty || []);
-  _stTop5Tbody.innerHTML = '';
-  items.forEach((item) => {
-    const tr = document.createElement('tr');
-    const valStr = isProfit ? `${item.value.toFixed(2)} dzd` : String(item.value);
-    tr.innerHTML =
-      `<td><span class="st-top5-name" dir="auto" title="${item.name}">${item.name}</span></td>` +
-      `<td><span class="st-top5-val">${valStr}</span></td>`;
-    _stTop5Tbody.appendChild(tr);
-  });
+  renderTop5Table(data);
 
   /* -- Summary Line -- */
-  _stMargin.textContent    = `${rawData.marginPct}%`;
-  _stDiscounts.textContent = `${rawData.totalDiscounts.toFixed(2)} dzd`;
+  _stMargin.textContent = data.marginPct !== null ? `${data.marginPct}%` : '—';
+  _stDiscounts.textContent = `${Number(data.totals.discounts || 0).toFixed(2)} dzd`;
 
   if (period === 'day') {
     _stBestDayCol.style.visibility = 'hidden';
-  } else if (rawData.bestDay) {
+  } else if (data.bestDay) {
     _stBestDayCol.style.visibility = 'visible';
-    _stBestDay.textContent = rawData.bestDay;
+    const parts = data.bestDay.split('-');
+    if (parts.length >= 3) {
+      _stBestDay.textContent = `${parts[1]}/${parts[2]}/${parts[0]}`;
+    } else {
+      _stBestDay.textContent = data.bestDay;
+    }
   } else {
-    _stBestDayCol.style.visibility = 'hidden';
+    _stBestDayCol.style.visibility = 'visible';
+    _stBestDay.textContent = '—';
   }
 }
 
-/* ---- Wire up radio changes -------------------------------- */
+async function renderStats() {
+  const period = getSelectedPeriod();
+
+  if (statsCache[period]) {
+    displayStats(statsCache[period], period);
+    return;
+  }
+
+  showStatsLoading(period);
+
+  const reqId = ++statsRequestId;
+
+  try {
+    const res = await window.api.getStats(period);
+
+    // Stale response check: user switched periods while request was in-flight
+    if (reqId !== statsRequestId) {
+      return;
+    }
+
+    if (!res || res.ok === false) {
+      showStatsFailure(period);
+      return;
+    }
+
+    statsCache[period] = res;
+    displayStats(res, period);
+  } catch (err) {
+    if (reqId !== statsRequestId) return;
+    console.error('Failed to load statistics:', err);
+    showStatsFailure(period);
+  }
+}
+
+function invalidateStatsCache() {
+  statsCache.day = null;
+  statsCache.week = null;
+  statsCache.month = null;
+
+  if (_secStats && _secStats.classList.contains('active')) {
+    renderStats();
+  }
+}
+
+/* ---- Event listeners -------------------------------------- */
 document.querySelectorAll('input[name="period"]').forEach((r) => {
-  r.addEventListener('change', renderStats);
+  r.addEventListener('change', () => {
+    renderStats();
+  });
 });
+
 document.querySelectorAll('input[name="top-metric"]').forEach((r) => {
-  r.addEventListener('change', renderStats);
+  r.addEventListener('change', () => {
+    const period = getSelectedPeriod();
+    renderTop5Table(statsCache[period]);
+  });
 });
 
 /* ---- Re-render & resize chart when Stats tab is activated - */
-const _secStats = document.getElementById('section-stats');
 const _statsObserver = new MutationObserver(() => {
   if (_secStats.classList.contains('active')) {
     requestAnimationFrame(() => {
@@ -1293,8 +1380,3 @@ const _statsObserver = new MutationObserver(() => {
   }
 });
 _statsObserver.observe(_secStats, { attributes: true, attributeFilter: ['class'] });
-
-/* ---- Initial render --------------------------------------- */
-renderStats();
-
-

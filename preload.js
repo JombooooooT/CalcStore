@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   // Sales operations
   addSale: (data) => ipcRenderer.invoke('sales:add', data),
   getDayStats: (date) => ipcRenderer.invoke('sales:getDayStats', date),
+  getStats: (period) => ipcRenderer.invoke('stats:get', period),
   onSalesChanged: (callback) => ipcRenderer.on('sales:changed', () => callback()),
 
   // Listen for blur toggle from the main process
