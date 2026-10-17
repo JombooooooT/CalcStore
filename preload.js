@@ -42,6 +42,9 @@ contextBridge.exposeInMainWorld('api', {
   // App version
   getAppVersion: () => ipcRenderer.invoke('app:version'),
 
+  // Factory reset (wipes all products & sales)
+  clearAllData: () => ipcRenderer.invoke('app:clear-data'),
+
   // Auto-update (user-controlled)
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),

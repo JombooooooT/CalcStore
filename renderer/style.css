@@ -443,6 +443,13 @@ html, body {
   background: #24b29d;
 }
 
+.dropdown-item:active {
+  background: #1a8b7a;
+}
+
+/* Matched query substring inside an option */
+.search-highlight { font-weight: bold; color: var(--color-brand-accent, #1abc9c); }
+
 .dropdown-empty {
   height: 40px;
   display: flex;
@@ -1223,26 +1230,33 @@ input[type="radio"]:focus-visible + .st-pill {
    ========================================================= */
 .set-wrap {
   position: absolute;
-  top: 70px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
   width: 520px;
+  max-height: calc(100% - 28px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+  padding-bottom: 2px;
 }
+
+/* Hidden scrollbar (content never needs to be prominent)   */
+.set-wrap::-webkit-scrollbar { display: none; }
 
 .set-card {
   background: var(--card-bg);
   border-radius: 12px;
-  padding: 18px 20px;
+  padding: 13px 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .set-card-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #fff;
   font-family: var(--font);
@@ -1299,7 +1313,7 @@ input[type="radio"]:focus-visible + .st-pill {
 
 .set-btn {
   flex: 1;
-  height: 46px;
+  height: 42px;
   background: var(--input-bg);
   border: none;
   border-radius: 10px;
@@ -1322,4 +1336,190 @@ input[type="radio"]:focus-visible + .st-pill {
 }
 
 .set-btn-hidden { display: none; }
+
+.hidden { display: none !important; }
+
+.btn-text {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--st-accent);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  white-space: nowrap;
+}
+
+.btn-text:hover { text-decoration: underline; }
+
+/* Store details input + save                            */
+.set-field {
+  display: flex;
+  gap: 10px;
+}
+
+.set-input {
+  flex: 1;
+  height: 42px;
+  background: var(--input-bg);
+  border: none;
+  border-radius: 10px;
+  padding: 0 14px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  text-align: left;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: box-shadow 0.15s ease;
+}
+
+.set-input::placeholder { color: rgba(255, 255, 255, 0.55); }
+.set-input:focus         { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
+
+.set-save-btn { flex: 0 0 108px; }
+
+/* Danger Zone card                                      */
+.set-danger-card {
+  border: 1px solid color-mix(in srgb, var(--close) 55%, transparent);
+}
+
+.set-danger-text {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+  font-family: var(--font);
+}
+
+.set-danger-btn {
+  height: 42px;
+  background: var(--close);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.set-danger-btn:hover  { filter: brightness(1.12); }
+.set-danger-btn:active { transform: scale(0.97); }
+
+
+/* =========================================================
+   Floating Company Name
+   Absolutely positioned so it never affects the tab flex row.
+   ========================================================= */
+.company-name {
+  position: absolute;
+  top: 15px;
+  left: 20px;
+  z-index: 5;
+  max-width: 240px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--minimize);
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font);
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+}
+
+
+/* =========================================================
+   Clear Data Confirmation Modal
+   ========================================================= */
+.cd-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+
+.cd-modal[hidden] { display: none; }
+
+.cd-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 20, 20, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: var(--radius-window);
+}
+
+.cd-card {
+  position: relative;
+  width: 420px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  animation: cd-pop 0.14s ease-out;
+}
+
+@keyframes cd-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.cd-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  font-family: var(--font);
+}
+
+.cd-text {
+  font-size: 15px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.5;
+  font-family: var(--font);
+}
+
+.cd-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.cd-cancel-btn,
+.cd-confirm-btn {
+  flex: 1;
+  height: 46px;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.cd-cancel-btn  { background: var(--input-bg); }
+.cd-confirm-btn { background: var(--close); }
+
+.cd-cancel-btn:hover,
+.cd-confirm-btn:hover  { filter: brightness(1.12); }
+
+.cd-cancel-btn:active,
+.cd-confirm-btn:active { transform: scale(0.97); }
 

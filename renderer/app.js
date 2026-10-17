@@ -332,6 +332,67 @@ function filterCombobox(query) {
   renderComboboxList();
 }
 
+// Debounced filtering: coalesces rapid keystrokes, flushed on nav keys.
+let filterTimer = null;
+function scheduleFilter(query) {
+  if (filterTimer) clearTimeout(filterTimer);
+  filterTimer = setTimeout(() => {
+    filterTimer = null;
+    filterCombobox(query);
+  }, 100);
+}
+function flushFilter(query) {
+  if (filterTimer) {
+    clearTimeout(filterTimer);
+    filterTimer = null;
+  }
+  filterCombobox(query);
+}
+
+// Mirror normalizeArabic for a single character (no trim) so normalized match
+// positions can be mapped back onto the original string for highlighting.
+function normalizeSearchChar(ch) {
+  const c = ch.toLowerCase();
+  if (/[\u064B-\u065F\u0670\u0640]/.test(c)) return '';
+  if (/[أإآا]/.test(c)) return 'ا';
+  if (/[ةه]/.test(c)) return 'ه';
+  if (/[ىي]/.test(c)) return 'ي';
+  return c;
+}
+
+function buildSearchIndex(str) {
+  let normalized = '';
+  const map = [];
+  for (let i = 0; i < str.length; i++) {
+    const n = normalizeSearchChar(str[i]);
+    for (let k = 0; k < n.length; k++) {
+      normalized += n[k];
+      map.push(i);
+    }
+  }
+  return { normalized, map };
+}
+
+function buildHighlightedName(name, query) {
+  const q = normalizeArabic(query);
+  if (!q) return window.escapeHtml(name);
+
+  const { normalized, map } = buildSearchIndex(name);
+  const idx = normalized.indexOf(q);
+  if (idx < 0) return window.escapeHtml(name);
+
+  const start = map[idx];
+  const end = map[idx + q.length - 1] + 1;
+
+  return (
+    window.escapeHtml(name.slice(0, start)) +
+    '<span class="search-highlight">' +
+    window.escapeHtml(name.slice(start, end)) +
+    '</span>' +
+    window.escapeHtml(name.slice(end))
+  );
+}
+
 function renderComboboxList() {
   dropdownList.innerHTML = '';
 
@@ -358,7 +419,7 @@ function renderComboboxList() {
     li.setAttribute('aria-selected', String(idx === comboboxHighlightIndex));
     li.setAttribute('dir', 'auto');
     li.title = p.name;
-    li.textContent = p.name;
+    li.innerHTML = buildHighlightedName(p.name, dropdownInput.value);
 
     li.addEventListener('mousedown', (e) => {
       e.preventDefault(); // keep focus
@@ -395,6 +456,7 @@ function selectComboboxProduct(p) {
   closeCombobox(false);
   recalcInputs();
   clearCalcMessage();
+  if (amountInput) amountInput.focus();
 }
 
 if (dropdownWrap && dropdownInput && dropdownList) {
@@ -409,6 +471,8 @@ if (dropdownWrap && dropdownInput && dropdownList) {
     if (!isComboboxOpen) {
       openCombobox();
     }
+    // Select-all on open so typing replaces the current selection.
+    requestAnimationFrame(() => dropdownInput.select());
   });
 
   dropdownInput.addEventListener('input', () => {
@@ -416,22 +480,53 @@ if (dropdownWrap && dropdownInput && dropdownList) {
     if (!isComboboxOpen) {
       openCombobox();
     }
-    filterCombobox(dropdownInput.value);
+    scheduleFilter(dropdownInput.value);
   });
 
   dropdownInput.addEventListener('keydown', (e) => {
+    const NAV_KEYS = ['ArrowDown', 'ArrowUp', 'Enter', 'Home', 'End', 'PageUp', 'PageDown'];
+    if (NAV_KEYS.indexOf(e.key) !== -1 && filterTimer) {
+      flushFilter(dropdownInput.value);
+    }
+
+    const last = filteredCalcProducts.length - 1;
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (!isComboboxOpen) {
         openCombobox();
       } else if (filteredCalcProducts.length > 0) {
-        comboboxHighlightIndex = Math.min(comboboxHighlightIndex + 1, filteredCalcProducts.length - 1);
+        comboboxHighlightIndex = comboboxHighlightIndex >= last ? 0 : comboboxHighlightIndex + 1;
         updateComboboxHighlight();
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (isComboboxOpen && filteredCalcProducts.length > 0) {
-        comboboxHighlightIndex = Math.max(comboboxHighlightIndex - 1, 0);
+        comboboxHighlightIndex = comboboxHighlightIndex <= 0 ? last : comboboxHighlightIndex - 1;
+        updateComboboxHighlight();
+      }
+    } else if (e.key === 'Home') {
+      if (isComboboxOpen && filteredCalcProducts.length > 0) {
+        e.preventDefault();
+        comboboxHighlightIndex = 0;
+        updateComboboxHighlight();
+      }
+    } else if (e.key === 'End') {
+      if (isComboboxOpen && filteredCalcProducts.length > 0) {
+        e.preventDefault();
+        comboboxHighlightIndex = last;
+        updateComboboxHighlight();
+      }
+    } else if (e.key === 'PageDown') {
+      if (isComboboxOpen && filteredCalcProducts.length > 0) {
+        e.preventDefault();
+        comboboxHighlightIndex = Math.min(last, comboboxHighlightIndex + 5);
+        updateComboboxHighlight();
+      }
+    } else if (e.key === 'PageUp') {
+      if (isComboboxOpen && filteredCalcProducts.length > 0) {
+        e.preventDefault();
+        comboboxHighlightIndex = Math.max(0, comboboxHighlightIndex - 5);
         updateComboboxHighlight();
       }
     } else if (e.key === 'Enter') {
@@ -1310,6 +1405,12 @@ document.addEventListener('keydown', async (e) => {
 
   // 2. Escape: Close any open modal / dropdown
   if (e.key === 'Escape') {
+    // If the clear-data confirmation modal is open, close it first
+    if (clearDataModal && !clearDataModal.hidden) {
+      e.preventDefault();
+      closeClearDataModal();
+      return;
+    }
     // If the calculator combobox is open, close it
     if (typeof isComboboxOpen !== 'undefined' && isComboboxOpen) {
       e.preventDefault();
@@ -1344,7 +1445,7 @@ document.addEventListener('keydown', async (e) => {
 });
 
 
-// -- Settings Tab � Auto-Update -----------------------------
+// -- Settings Tab � Auto-Update -----------------------------
 const setCurrentVersionEl = document.getElementById('set-current-version');
 const setStatusEl         = document.getElementById('set-status');
 const setProgressEl       = document.getElementById('set-progress');
@@ -1352,6 +1453,29 @@ const setProgressFillEl   = document.getElementById('set-progress-fill');
 const setCheckBtn         = document.getElementById('set-check-btn');
 const setDownloadBtn      = document.getElementById('set-download-btn');
 const setInstallBtn       = document.getElementById('set-install-btn');
+const setWhatsNewBtn      = document.getElementById('btn-whats-new');
+const releaseNotesBox     = document.getElementById('release-notes-container');
+const releaseNotesText    = document.getElementById('release-notes-text');
+
+// Keep the latest non-empty notes so the button survives the available ->
+// downloaded transition (update-downloaded does not always repeat the notes).
+let cachedReleaseNotes = null;
+
+function hideReleaseNotes() {
+  setWhatsNewBtn.classList.add('hidden');
+  releaseNotesBox.classList.add('hidden');
+}
+
+function applyReleaseNotes(notes) {
+  if (notes) cachedReleaseNotes = notes;
+  if (cachedReleaseNotes) {
+    releaseNotesText.innerText = cachedReleaseNotes;
+    setWhatsNewBtn.classList.remove('hidden');
+  } else {
+    hideReleaseNotes();
+  }
+}
+
 
 function showSetButton(el, visible) {
   el.classList.toggle('set-btn-hidden', !visible);
@@ -1367,8 +1491,11 @@ function renderUpdateStatus(status) {
   status = status || { state: 'idle' };
   if (status.current) setCurrentVersionEl.textContent = 'v' + status.current;
 
+  hideReleaseNotes();
+
   switch (status.state) {
     case 'checking':
+      cachedReleaseNotes = null;
       setProgressEl.hidden = true;
       setStatusLine('Checking for updates...', 'is-busy');
       setCheckBtn.disabled = true;
@@ -1383,6 +1510,7 @@ function renderUpdateStatus(status) {
       setCheckBtn.textContent = 'Check Again';
       showSetButton(setDownloadBtn, true);
       showSetButton(setInstallBtn, false);
+      applyReleaseNotes(status.releaseNotes);
       break;
 
     case 'up-to-date':
@@ -1410,6 +1538,7 @@ function renderUpdateStatus(status) {
       setCheckBtn.disabled = true;
       showSetButton(setDownloadBtn, false);
       showSetButton(setInstallBtn, true);
+      applyReleaseNotes(status.releaseNotes);
       break;
 
     case 'installing':
@@ -1483,6 +1612,10 @@ setInstallBtn.addEventListener('click', () => {
   window.api.installUpdate();
 });
 
+setWhatsNewBtn.addEventListener('click', () => {
+  releaseNotesBox.classList.toggle('hidden');
+});
+
 window.api.onUpdateStatus((status) => renderUpdateStatus(status));
 
 (async function initSettings() {
@@ -1496,3 +1629,117 @@ window.api.onUpdateStatus((status) => renderUpdateStatus(status));
   }
   await refreshSettings();
 })();
+
+// -- Store Name (persisted in localStorage) -----------------
+const companyNameDisplay = document.getElementById('company-name-display');
+const companyNameInput   = document.getElementById('company-name-input');
+const companyNameSaveBtn = document.getElementById('company-name-save');
+
+function applyCompanyName(name) {
+  const value = typeof name === 'string' ? name : '';
+  companyNameDisplay.textContent = value;
+  if (companyNameInput) companyNameInput.value = value;
+}
+
+(function initCompanyName() {
+  let saved = '';
+  try {
+    saved = localStorage.getItem('companyName') || '';
+  } catch (err) {
+    console.error('Failed to read company name:', err);
+  }
+  applyCompanyName(saved);
+})();
+
+let companySaveTimer = null;
+
+companyNameSaveBtn.addEventListener('click', () => {
+  const value = companyNameInput.value.trim();
+
+  try {
+    localStorage.setItem('companyName', value);
+  } catch (err) {
+    console.error('Failed to save company name:', err);
+  }
+
+  // Instantly reflect the change in the floating header
+  applyCompanyName(value);
+
+  companyNameSaveBtn.textContent = 'Saved!';
+  if (companySaveTimer) clearTimeout(companySaveTimer);
+  companySaveTimer = setTimeout(() => {
+    companyNameSaveBtn.textContent = 'Save';
+    companySaveTimer = null;
+  }, 2000);
+});
+
+// -- Clear All Data -----------------------------------------
+const clearDataModal   = document.getElementById('clear-data-modal');
+const clearDataOpenBtn = document.getElementById('clear-data-btn');
+const clearDataCancel  = document.getElementById('clear-data-cancel');
+const clearDataConfirm = document.getElementById('clear-data-confirm');
+
+function openClearDataModal() {
+  clearDataModal.hidden = false;
+  clearDataCancel.focus();
+}
+
+function closeClearDataModal() {
+  clearDataModal.hidden = true;
+}
+
+clearDataOpenBtn.addEventListener('click', openClearDataModal);
+clearDataCancel.addEventListener('click', closeClearDataModal);
+
+// Close when clicking the backdrop (but not the card itself)
+clearDataModal.addEventListener('click', (e) => {
+  if (e.target === clearDataModal || e.target.classList.contains('cd-backdrop')) {
+    closeClearDataModal();
+  }
+});
+
+// Wipe the database, then return the whole UI to a 0-state.
+async function resetAppAfterClear() {
+  // 1. Drop the in-memory product arrays + selection
+  currentProducts = [];
+  calcProducts = [];
+  selectedProduct = null;
+  filteredCalcProducts = [];
+  comboboxHighlightIndex = -1;
+
+  // 2. Clear the calculator dropdown / inputs
+  if (isComboboxOpen) closeCombobox(false);
+  dropdownInput.value = '';
+  dropdownInput.setAttribute('aria-expanded', 'false');
+  dropdownContainer.classList.remove('open');
+  dropdownList.hidden = true;
+  dropdownList.innerHTML = '';
+
+  priceInput.value = '';
+  amountInput.value = '';
+  discountInput.value = '';
+
+  // 3. Reload (now-empty) product list, calculator products & day cards
+  const list = await fetchProducts();
+  await loadProducts(null, list);
+  await loadCalculatorProducts(list);
+  await loadDayCards();
+
+  // 4. Reset the stats views
+  invalidateStatsCache();
+  if (_secStats && _secStats.classList.contains('active')) {
+    renderStats();
+  }
+}
+
+clearDataConfirm.addEventListener('click', async () => {
+  clearDataConfirm.disabled = true;
+  try {
+    await window.api.clearAllData();
+  } catch (err) {
+    console.error('Failed to clear data:', err);
+  }
+  clearDataConfirm.disabled = false;
+  closeClearDataModal();
+  await resetAppAfterClear();
+});

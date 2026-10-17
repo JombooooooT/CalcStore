@@ -580,5 +580,10 @@ handle('update:status', () => {
   return { ok: true, status: updater.getStatus() };
 });
 
+// ── Factory Reset IPC Handler ──────────────────────────────────
+handle('app:clear-data', () => {
+  return db.clearAllData();
+});
+
 
 

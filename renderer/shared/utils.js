@@ -48,7 +48,7 @@
     if (!text) return '';
     return text
       .toLowerCase()
-      .replace(/[\u064B-\u065F\u0670]/g, '') // remove tashkeel / diacritics
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '') // remove tashkeel / diacritics / tatweel
       .replace(/[أإآا]/g, 'ا')               // normalize alefs
       .replace(/[ةه]/g, 'ه')                 // ة = ه
       .replace(/[ىي]/g, 'ي')                 // ى = ي
