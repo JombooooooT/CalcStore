@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db.js');
 const { getLocalDateStr } = require('./lib/dates.js');
+const updater = require('./updater.js');
 
 // Set language switch to en-US for date picker before app is ready
 app.commandLine.appendSwitch('lang', 'en-US');
@@ -283,6 +284,9 @@ app.whenReady().then(async () => {
 
     createWindow();
 
+    // Set up the user-controlled auto-updater (checks only on demand)
+    updater.init(() => mainWindow);
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -553,6 +557,27 @@ handle('export-csv', async () => {
     console.error('CSV export failed:', err);
     return { ok: false, error: err.message || 'Export failed' };
   }
+});
+
+// ── Auto-Update IPC Handlers ───────────────────────────────────
+handle('app:version', () => {
+  return { ok: true, version: app.getVersion() };
+});
+
+handle('update:check', () => {
+  return updater.check();
+});
+
+handle('update:download', () => {
+  return updater.download();
+});
+
+handle('update:install', () => {
+  return updater.install();
+});
+
+handle('update:status', () => {
+  return { ok: true, status: updater.getStatus() };
 });
 
 

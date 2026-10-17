@@ -38,4 +38,18 @@ contextBridge.exposeInMainWorld('api', {
 
   // CSV Export
   exportCsv: () => ipcRenderer.invoke('export-csv'),
+
+  // App version
+  getAppVersion: () => ipcRenderer.invoke('app:version'),
+
+  // Auto-update (user-controlled)
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:status'),
+  onUpdateStatus: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on('update:status', listener);
+    return () => ipcRenderer.removeListener('update:status', listener);
+  },
 });

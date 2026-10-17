@@ -43,6 +43,8 @@ tabButtons.forEach((btn) => {
     } else if (target === 'sales') {
       loadCalculatorProducts();
       loadDayCards();
+    } else if (target === 'settings') {
+      refreshSettings();
     }
   });
 });
@@ -1333,7 +1335,164 @@ document.addEventListener('keydown', async (e) => {
       e.preventDefault();
       const tab3 = document.getElementById('tab-stats');
       if (tab3) tab3.click();
+    } else if (e.code === 'Digit4' || ['4', "'"].includes(e.key)) {
+      e.preventDefault();
+      const tab4 = document.getElementById('tab-settings');
+      if (tab4) tab4.click();
     }
   }
 });
 
+
+// -- Settings Tab · Auto-Update -----------------------------
+const setCurrentVersionEl = document.getElementById('set-current-version');
+const setStatusEl         = document.getElementById('set-status');
+const setProgressEl       = document.getElementById('set-progress');
+const setProgressFillEl   = document.getElementById('set-progress-fill');
+const setCheckBtn         = document.getElementById('set-check-btn');
+const setDownloadBtn      = document.getElementById('set-download-btn');
+const setInstallBtn       = document.getElementById('set-install-btn');
+
+function showSetButton(el, visible) {
+  el.classList.toggle('set-btn-hidden', !visible);
+}
+
+function setStatusLine(text, tone) {
+  setStatusEl.textContent = text;
+  setStatusEl.classList.remove('is-error', 'is-ok', 'is-busy');
+  if (tone) setStatusEl.classList.add(tone);
+}
+
+function renderUpdateStatus(status) {
+  status = status || { state: 'idle' };
+  if (status.current) setCurrentVersionEl.textContent = 'v' + status.current;
+
+  switch (status.state) {
+    case 'checking':
+      setProgressEl.hidden = true;
+      setStatusLine('Checking for updates...', 'is-busy');
+      setCheckBtn.disabled = true;
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    case 'available':
+      setProgressEl.hidden = true;
+      setStatusLine('Version ' + (status.version ? 'v' + status.version : '') + ' is available.', 'is-ok');
+      setCheckBtn.disabled = false;
+      setCheckBtn.textContent = 'Check Again';
+      showSetButton(setDownloadBtn, true);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    case 'up-to-date':
+      setProgressEl.hidden = true;
+      setStatusLine('You are on the latest version.', 'is-ok');
+      setCheckBtn.disabled = false;
+      setCheckBtn.textContent = 'Check for Updates';
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    case 'downloading':
+      setProgressEl.hidden = false;
+      setProgressFillEl.style.width = (status.percent || 0) + '%';
+      setStatusLine('Downloading update... ' + (status.percent || 0) + '%', 'is-busy');
+      setCheckBtn.disabled = true;
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    case 'downloaded':
+      setProgressEl.hidden = false;
+      setProgressFillEl.style.width = '100%';
+      setStatusLine('Version ' + (status.version ? 'v' + status.version : '') + ' downloaded. Restart to install.', 'is-ok');
+      setCheckBtn.disabled = true;
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, true);
+      break;
+
+    case 'installing':
+      setStatusLine('Restarting to install the update...', 'is-busy');
+      setCheckBtn.disabled = true;
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    case 'unsupported':
+      setProgressEl.hidden = true;
+      setStatusLine(status.message || 'Updates are available only in the installed build.', 'is-error');
+      setCheckBtn.disabled = true;
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    case 'error':
+      setProgressEl.hidden = true;
+      setStatusLine(status.message || 'Update failed.', 'is-error');
+      setCheckBtn.disabled = false;
+      setCheckBtn.textContent = 'Check for Updates';
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+      break;
+
+    default:
+      setProgressEl.hidden = true;
+      setStatusLine('Not checked yet.', null);
+      setCheckBtn.disabled = false;
+      setCheckBtn.textContent = 'Check for Updates';
+      showSetButton(setDownloadBtn, false);
+      showSetButton(setInstallBtn, false);
+  }
+}
+
+async function refreshSettings() {
+  try {
+    const res = await window.api.getUpdateStatus();
+    if (res && res.ok && res.status) {
+      renderUpdateStatus(res.status);
+    }
+  } catch (err) {
+    console.error('Failed to read update status:', err);
+  }
+}
+
+setCheckBtn.addEventListener('click', async () => {
+  setCheckBtn.disabled = true;
+  setStatusLine('Checking for updates...', 'is-busy');
+  try {
+    await window.api.checkForUpdates();
+  } catch (err) {
+    setStatusLine((err && err.message) || 'Update check failed.', 'is-error');
+    setCheckBtn.disabled = false;
+  }
+});
+
+setDownloadBtn.addEventListener('click', async () => {
+  setDownloadBtn.disabled = true;
+  try {
+    await window.api.downloadUpdate();
+  } catch (err) {
+    setStatusLine((err && err.message) || 'Download failed.', 'is-error');
+    setDownloadBtn.disabled = false;
+  }
+});
+
+setInstallBtn.addEventListener('click', () => {
+  setInstallBtn.disabled = true;
+  window.api.installUpdate();
+});
+
+window.api.onUpdateStatus((status) => renderUpdateStatus(status));
+
+(async function initSettings() {
+  try {
+    const res = await window.api.getAppVersion();
+    if (res && res.ok && res.version) {
+      setCurrentVersionEl.textContent = 'v' + res.version;
+    }
+  } catch (err) {
+    console.error('Failed to read app version:', err);
+  }
+  await refreshSettings();
+})();
