@@ -11,6 +11,9 @@
 <body>
   <div id="app">
 
+    <!-- ═══════════════ COMPANY NAME (floating, non-layout) ═══════════════ -->
+    <div id="company-name-display" class="company-name"></div>
+
     <!-- ═══════════════ TOP BAR (draggable) ═══════════════ -->
     <div id="top-bar">
 
@@ -334,11 +337,47 @@
             <button class="set-btn" id="set-check-btn" type="button">Check for Updates</button>
             <button class="set-btn set-btn-hidden" id="set-download-btn" type="button">Download Update</button>
             <button class="set-btn set-btn-hidden" id="set-install-btn" type="button">Restart &amp; Install</button>
+            <button id="btn-whats-new" class="btn-text hidden" style="margin-left: 10px;">(?) What's New</button>
+          </div>
+
+          <div id="release-notes-container" class="hidden" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 0.9em; max-height: 150px; overflow-y: auto;">
+            <pre id="release-notes-text" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+          </div>
+
+          <!-- ── Store Details card ─────────────────────────── -->
+          <div class="set-card">
+            <span class="set-card-title">Store Details</span>
+            <div class="set-field">
+              <input type="text" class="set-input" id="company-name-input"
+                     placeholder="Store name..." autocomplete="off" spellcheck="false"
+                     maxlength="40" aria-label="Store name" />
+              <button class="set-btn set-save-btn" id="company-name-save" type="button">Save</button>
+            </div>
+          </div>
+
+          <!-- ── Danger Zone card ───────────────────────────── -->
+          <div class="set-card set-danger-card">
+            <span class="set-card-title">Danger Zone</span>
+            <span class="set-danger-text">Permanently delete all products and sales data. This cannot be undone.</span>
+            <button class="set-danger-btn" id="clear-data-btn" type="button">Clear All Data</button>
           </div>
 
         </div>
 
       </section>
+    </div>
+
+    <!-- ═══════════════ CLEAR DATA CONFIRMATION MODAL ═══════════════ -->
+    <div id="clear-data-modal" class="cd-modal" hidden>
+      <div class="cd-backdrop"></div>
+      <div class="cd-card" role="dialog" aria-modal="true" aria-labelledby="cd-title">
+        <span class="cd-title" id="cd-title">Clear All Data</span>
+        <p class="cd-text">Are you sure you want to delete all products and sales data? This action cannot be undone.</p>
+        <div class="cd-actions">
+          <button class="cd-cancel-btn" id="clear-data-cancel" type="button">Cancel</button>
+          <button class="cd-confirm-btn" id="clear-data-confirm" type="button">Yes, Clear Data</button>
+        </div>
+      </div>
     </div>
 
   </div><!-- /app -->

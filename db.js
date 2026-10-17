@@ -677,12 +677,35 @@ function getAllSalesCalc() {
   return stmt.all() || [];
 }
 
+// ── Factory Reset ──────────────────────────────────────────
+// Wipes all sales and products, and resets the AUTOINCREMENT
+// counters so ids start again from 1.
+function clearAllData() {
+  const tx = db.transaction(() => {
+    db.exec('DELETE FROM sales;');
+    db.exec('DELETE FROM products;');
+
+    // sqlite_sequence exists only once an AUTOINCREMENT table has been
+    // written to; guard the reset so a fresh database does not throw.
+    const seq = db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_sequence'")
+      .get();
+    if (seq) {
+      db.exec('DELETE FROM sqlite_sequence;');
+    }
+  });
+
+  tx();
+  return { ok: true };
+}
+
 module.exports = {
   initDb,
   closeDb,
   getDb,
   getDbPath,
   backup,
+  clearAllData,
   listProducts,
   addProduct,
   updateProduct,

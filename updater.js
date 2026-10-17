@@ -19,6 +19,27 @@ function currentVersion() {
   return app.getVersion();
 }
 
+// electron-updater may hand us releaseNotes as a plain string (GitHub releases)
+// or as an array of { version, note } entries. Normalise both to a single string
+// so the renderer can safely render it as plain text.
+function normalizeReleaseNotes(notes) {
+  if (!notes) return null;
+  if (Array.isArray(notes)) {
+    const joined = notes
+      .map((entry) => {
+        if (!entry) return '';
+        if (typeof entry === 'string') return entry;
+        const heading = entry.version ? 'v' + entry.version + '\n' : '';
+        return heading + (entry.note || '');
+      })
+      .filter(Boolean)
+      .join('\n\n');
+    return joined || null;
+  }
+  const text = String(notes).trim();
+  return text || null;
+}
+
 function broadcast(status) {
   lastStatus = status;
   const win = windowGetter();
@@ -58,7 +79,7 @@ function init(getWindow) {
       current: currentVersion(),
       version: info && info.version ? String(info.version) : null,
       releaseName: (info && info.releaseName) || null,
-      notes: (info && info.releaseNotes) || null,
+      releaseNotes: normalizeReleaseNotes(info && info.releaseNotes),
     });
   });
 
@@ -81,6 +102,7 @@ function init(getWindow) {
       state: 'downloaded',
       current: currentVersion(),
       version: info && info.version ? String(info.version) : null,
+      releaseNotes: normalizeReleaseNotes(info && info.releaseNotes),
     });
   });
 
