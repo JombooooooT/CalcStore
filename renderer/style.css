@@ -1217,3 +1217,109 @@ input[type="radio"]:focus-visible + .st-pill {
   font-family: var(--font);
 }
 
+
+/* =========================================================
+   Settings Tab  (#section-settings)
+   ========================================================= */
+.set-wrap {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.set-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.set-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  font-family: var(--font);
+}
+
+.set-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.set-row-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font);
+}
+
+.set-row-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  text-align: right;
+  font-family: var(--font);
+}
+
+.set-row-value.is-ok    { color: var(--st-accent); }
+.set-row-value.is-busy  { color: rgba(255, 255, 255, 0.85); }
+.set-row-value.is-error { color: #ffb4b4; }
+
+/* Download progress bar                                    */
+.set-progress {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.set-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--st-accent);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+/* Action buttons                                           */
+.set-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.set-btn {
+  flex: 1;
+  height: 46px;
+  background: var(--input-bg);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.set-btn:not(:disabled):hover  { filter: brightness(1.1); }
+.set-btn:not(:disabled):active { transform: scale(0.97); }
+
+.set-btn:disabled {
+  background: color-mix(in srgb, var(--input-bg) 45%, #002323 55%);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: default;
+}
+
+.set-btn-hidden { display: none; }
+

@@ -8,16 +8,62 @@
     "start:seed": "electron . --seed",
     "start:seed-all": "electron . --seed --seed-sales",
     "start:log-sales": "electron . --log-sales",
-    "test": "node test-runner.js"
+    "test": "node test-runner.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win",
+    "dist:publish": "electron-builder --win --publish always"
   },
   "keywords": [],
-  "author": "",
+  "author": "JombooooooT",
   "license": "ISC",
+  "build": {
+    "appId": "com.jomboooooot.calcstore",
+    "productName": "CalcStore",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "updater.js",
+      "preload.js",
+      "preload-form.js",
+      "preload-today-sells.js",
+      "db.js",
+      "stats.js",
+      "lib/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JombooooooT",
+        "repo": "CalcStore"
+      }
+    ]
+  },
   "devDependencies": {
-    "electron": "44.7.0"
+    "electron": "44.7.0",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",
-    "better-sqlite3": "13.0.3"
+    "better-sqlite3": "13.0.3",
+    "electron-updater": "^6.8.9"
   }
 }
