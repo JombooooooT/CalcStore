@@ -13,14 +13,29 @@ contextBridge.exposeInMainWorld('api', {
   // Products CRUD & events
   listProducts: () => ipcRenderer.invoke('products:list'),
   deleteProduct: (id) => ipcRenderer.invoke('products:delete', id),
-  onProductsChanged: (callback) => ipcRenderer.on('products:changed', (_event, productId) => callback(productId)),
+  onProductsChanged: (callback) => {
+    const listener = (_event, productId) => callback(productId);
+    ipcRenderer.on('products:changed', listener);
+    return () => ipcRenderer.removeListener('products:changed', listener);
+  },
 
   // Sales operations
   addSale: (data) => ipcRenderer.invoke('sales:add', data),
   getDayStats: (date) => ipcRenderer.invoke('sales:getDayStats', date),
   getStats: (period) => ipcRenderer.invoke('stats:get', period),
-  onSalesChanged: (callback) => ipcRenderer.on('sales:changed', () => callback()),
+  onSalesChanged: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('sales:changed', listener);
+    return () => ipcRenderer.removeListener('sales:changed', listener);
+  },
 
   // Listen for blur toggle from the main process
-  onBlur: (callback) => ipcRenderer.on('ui:blur', (_event, blurred) => callback(blurred)),
+  onBlur: (callback) => {
+    const listener = (_event, blurred) => callback(blurred);
+    ipcRenderer.on('ui:blur', listener);
+    return () => ipcRenderer.removeListener('ui:blur', listener);
+  },
+
+  // CSV Export
+  exportCsv: () => ipcRenderer.invoke('export-csv'),
 });

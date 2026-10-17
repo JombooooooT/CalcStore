@@ -2,26 +2,8 @@
    CalcStore — Stats Logic (Pure Functions, Main Process)
    ========================================================= */
 
-// Helper: Round money to 2 decimals
-function round2(val) {
-  return Math.round((Number(val) + Number.EPSILON) * 100) / 100;
-}
-
-// Helper: Round quantity to 4 decimals
-function round4(val) {
-  return Math.round((Number(val) + Number.EPSILON) * 10000) / 10000;
-}
-
-// Helper: Shift a 'YYYY-MM-DD' date string by N days
-function shiftDateStr(dateStr, days) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + days);
-  const Y = dt.getFullYear();
-  const M = String(dt.getMonth() + 1).padStart(2, '0');
-  const D = String(dt.getDate()).padStart(2, '0');
-  return `${Y}-${M}-${D}`;
-}
+const { round2, round4 } = require('./lib/money.js');
+const { getLocalDateStr, shiftDateStr } = require('./lib/dates.js');
 
 // Helper: Compute date range ending yesterday (TODAY IS NEVER INCLUDED)
 function getDateRange(period, todayStr) {
@@ -129,11 +111,7 @@ function getStatements(db) {
  */
 function getStats(db, period, todayStr) {
   if (!todayStr) {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    todayStr = `${y}-${m}-${d}`;
+    todayStr = getLocalDateStr();
   }
 
   const { from, to, days } = getDateRange(period, todayStr);
@@ -225,5 +203,6 @@ function getStats(db, period, todayStr) {
 
 module.exports = {
   getStats,
+  // Exported for the test suite (tests/calcstore.test.js) to verify date ranges.
   getDateRange,
 };

@@ -7,32 +7,75 @@ const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const stats = require('./stats.js');
+const { round2 } = require('./lib/money.js');
+const { getLocalDateStr } = require('./lib/dates.js');
 
 let db = null;
+let currentDbPath = null;
 
-// Helper: Round money to 2 decimals
-function round2(val) {
-  return Math.round((Number(val) + Number.EPSILON) * 100) / 100;
+function getDb() {
+  return db;
+}
+
+// Absolute path of the open database file, or null when uninitialized.
+function getDbPath() {
+  return (db && currentDbPath && currentDbPath !== ':memory:') ? currentDbPath : null;
 }
 
 // ── Database Initialization & Migrations ───────────────────
-function initDb() {
-  const dbDir = app.getPath('userData');
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+function initDb(customPath = null) {
+  if (db) {
+    try { db.close(); } catch (_) {}
+    db = null;
   }
 
-  const dbPath = path.join(dbDir, 'sales.db');
+  let dbPath = customPath || process.env.CALCSTORE_DB_PATH;
+  if (!dbPath) {
+    const dbDir = app.getPath('userData');
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    dbPath = path.join(dbDir, 'sales.db');
+  }
+
   console.log('Database path:', dbPath);
 
   db = new Database(dbPath);
+  currentDbPath = dbPath;
 
-  // Enforce WAL mode and foreign key constraints
+  // Enforce WAL mode (if not memory) and foreign key constraints
   db.pragma('foreign_keys = ON');
-  db.pragma('journal_mode = WAL');
+  if (dbPath !== ':memory:') {
+    db.pragma('journal_mode = WAL');
+  }
 
-  migrate(dbPath);
+  try {
+    migrate(dbPath);
+  } catch (err) {
+    closeDb();
+    throw err;
+  }
   return db;
+}
+
+function closeDb() {
+  if (db) {
+    try { db.close(); } catch (_) {}
+    db = null;
+  }
+  currentDbPath = null;
+}
+
+// Backup the live database to destinationPath using SQLite's native backup
+// API. Unlike fs.copyFileSync, this reads through the SQLite connection, so it
+// captures transactions still sitting in the WAL file and produces a
+// consistent snapshot even while the database is in use.
+function backup(destinationPath) {
+  const conn = getDb();
+  if (!conn) {
+    return Promise.reject(new Error('Database is not initialized'));
+  }
+  return conn.backup(destinationPath);
 }
 
 function migrate(dbPath) {
@@ -83,12 +126,14 @@ function migrate(dbPath) {
   if (userVersion < 2) {
     console.log('Migrating database to version 2 (buy price >= 0, sales_calc view)...');
 
-    // 1. Copy database file to sales.db.bak-v1 in the same directory if not existing
-    if (dbPath && fs.existsSync(dbPath)) {
+    // 1. Snapshot the v1 database to sales.db.bak-v1 if not already present.
+    //    db.serialize() reads through the live connection (WAL included), so
+    //    this is a consistent, WAL-safe replacement for fs.copyFileSync.
+    if (dbPath && dbPath !== ':memory:' && fs.existsSync(dbPath)) {
       const bakPath = path.join(path.dirname(dbPath), 'sales.db.bak-v1');
       if (!fs.existsSync(bakPath)) {
         try {
-          fs.copyFileSync(dbPath, bakPath);
+          fs.writeFileSync(bakPath, db.serialize());
           console.log('Created database backup at:', bakPath);
         } catch (bakErr) {
           console.error('Failed to create backup:', bakErr);
@@ -128,6 +173,27 @@ function migrate(dbPath) {
         if (fkErrors && fkErrors.length > 0) {
           throw new Error('Foreign key check failed: ' + JSON.stringify(fkErrors));
         }
+
+        // Create / recreate VIEW sales_calc
+        db.exec(`
+          DROP VIEW IF EXISTS sales_calc;
+          CREATE VIEW sales_calc AS
+          SELECT
+            id,
+            product_id,
+            product_name,
+            quantity,
+            unit_price,
+            unit_cost,
+            discount,
+            sold_at,
+            date(sold_at) AS sold_date,
+            ROUND(quantity * unit_price - discount, 2) AS paid,
+            ROUND(ROUND(quantity * unit_price - discount, 2) - quantity * unit_cost, 2) AS profit
+          FROM sales;
+        `);
+
+        db.pragma('user_version = 2');
       });
 
       migrationV2Tx();
@@ -140,26 +206,6 @@ function migrate(dbPath) {
     // Re-enable foreign keys outside transaction
     db.pragma('foreign_keys = ON');
 
-    // Create / recreate VIEW sales_calc
-    db.exec(`
-      DROP VIEW IF EXISTS sales_calc;
-      CREATE VIEW sales_calc AS
-      SELECT
-        id,
-        product_id,
-        product_name,
-        quantity,
-        unit_price,
-        unit_cost,
-        discount,
-        sold_at,
-        date(sold_at) AS sold_date,
-        ROUND(quantity * unit_price - discount, 2) AS paid,
-        ROUND(ROUND(quantity * unit_price - discount, 2) - quantity * unit_cost, 2) AS profit
-      FROM sales;
-    `);
-
-    db.pragma('user_version = 2');
     console.log('Database migrated to version 2 successfully');
   }
 }
@@ -309,7 +355,7 @@ function deleteProduct(id) {
   `);
 
   const info = stmt.run(numId);
-  return { ok: info.changes > 0, id: numId };
+  return { ok: info.changes > 0, deleted: info.changes > 0, id: numId };
 }
 
 // ── Sales Operations ───────────────────────────────────────
@@ -324,15 +370,11 @@ function addSale({ productId, inputType, value, discount }) {
     return { ok: false, errors: { product: 'Product not found or inactive' } };
   }
 
-  if (value === undefined || value === null || String(value).trim() === '') {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return { ok: false, errors: { value: 'Enter a price or an amount above 0' } };
   }
 
-  const cleanValStr = String(value).trim().replace(',', '.');
-  const numVal = Number(cleanValStr);
-  if (isNaN(numVal) || numVal <= 0) {
-    return { ok: false, errors: { value: 'Enter a price or an amount above 0' } };
-  }
+  const numVal = value;
 
   let quantity;
   if (inputType === 'price') {
@@ -354,13 +396,11 @@ function addSale({ productId, inputType, value, discount }) {
 
   // Discount validation
   let cleanDiscount = 0;
-  if (discount !== undefined && discount !== null && String(discount).trim() !== '') {
-    const cleanDiscStr = String(discount).trim().replace(',', '.');
-    const numDisc = Number(cleanDiscStr);
-    if (isNaN(numDisc) || numDisc < 0) {
+  if (discount !== undefined && discount !== null) {
+    if (typeof discount !== 'number' || !Number.isFinite(discount) || discount < 0) {
       return { ok: false, errors: { discount: "Discount must be 0 or more" } };
     }
-    cleanDiscount = round2(numDisc);
+    cleanDiscount = round2(discount);
   }
 
   const priceBeforeDiscount = round2(quantity * product.sell_price);
@@ -452,7 +492,7 @@ function deleteSale(id) {
   const stmt = db.prepare('DELETE FROM sales WHERE id = ?');
   const result = stmt.run(id);
   return {
-    ok: true,
+    ok: result.changes > 0,
     deleted: result.changes > 0,
   };
 }
@@ -508,8 +548,6 @@ function mulberry32(seed) {
 }
 
 function seedSalesIfEmpty() {
-  if (!process.argv.includes('--seed-sales')) return;
-
   const countRow = db.prepare('SELECT COUNT(*) as count FROM sales').get();
   if (countRow.count > 0) {
     return;
@@ -536,10 +574,7 @@ function seedSalesIfEmpty() {
     if (skipDays.has(dayOffset)) continue;
 
     const dayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOffset);
-    const yyyy = dayDate.getFullYear();
-    const mm = String(dayDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(dayDate.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const dateStr = getLocalDateStr(dayDate);
 
     // 3 to 6 sales per active day (avg ~4.7 * 32 active days = ~150 sales)
     const salesToday = 3 + Math.floor(rng() * 4);
@@ -622,8 +657,32 @@ function getStats(period, todayStr) {
   return stats.getStats(db, period, todayStr);
 }
 
+function getAllSalesCalc() {
+  const stmt = db.prepare(`
+    SELECT
+      id,
+      product_id,
+      product_name,
+      quantity,
+      unit_price,
+      unit_cost,
+      discount,
+      sold_at,
+      sold_date,
+      paid,
+      profit
+    FROM sales_calc
+    ORDER BY sold_at DESC, id DESC
+  `);
+  return stmt.all() || [];
+}
+
 module.exports = {
   initDb,
+  closeDb,
+  getDb,
+  getDbPath,
+  backup,
   listProducts,
   addProduct,
   updateProduct,
@@ -633,6 +692,7 @@ module.exports = {
   getStats,
   listSales,
   deleteSale,
+  getAllSalesCalc,
   seedIfEmpty,
   seedSalesIfEmpty,
 };

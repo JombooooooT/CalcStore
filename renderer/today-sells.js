@@ -17,17 +17,12 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Query string & Title / Date Setup ──────────────────────
+const { getLocalDateStr, TRASH_SVG } = window.CalcUtils;
+
 const urlParams = new URLSearchParams(window.location.search);
 const queryDate = urlParams.get('date'); // 'YYYY-MM-DD'
 
-function getLocalDateString(d = new Date()) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-const todayLocalStr = getLocalDateString();
+const todayLocalStr = getLocalDateStr();
 const isToday = !queryDate || queryDate === todayLocalStr;
 const currentDateStr = queryDate || todayLocalStr;
 
@@ -38,32 +33,9 @@ if (titleEl) {
 document.title = isToday ? "Today's Sells" : "Sells";
 
 const dateEl = document.getElementById('ts-date');
-if (currentDateStr && currentDateStr.includes('-')) {
-  const [yyyy, mm, dd] = currentDateStr.split('-');
-  dateEl.textContent = `${mm}/${dd}/${yyyy}`;
-} else {
-  dateEl.textContent = new Date().toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-  });
+if (dateEl) {
+  dateEl.textContent = window.CalcUtils.formatDateDisplay(window.CalcUtils.parseDateStr(currentDateStr));
 }
-
-// ── Trash SVG Icon ─────────────────────────────────────────
-const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
-  width="20" height="20" fill="currentColor">
-  <path d="M448,85.333h-66.133C371.66,35.703,328.002,0.064,277.333,0h-42.667
-    c-50.669,0.064-94.327,35.703-104.533,85.333H64c-11.782,0-21.333,9.551-21.333,21.333
-    S52.218,128,64,128h21.333v277.333C85.404,464.214,133.119,511.93,192,512h128
-    c58.881-0.07,106.596-47.786,106.667-106.667V128H448c11.782,0,21.333-9.551,21.333-21.333
-    S459.782,85.333,448,85.333z
-    M234.667,362.667c0,11.782-9.551,21.333-21.333,21.333C201.551,384,192,374.449,192,362.667
-    v-128c0-11.782,9.551-21.333,21.333-21.333c11.782,0,21.333,9.551,21.333,21.333V362.667z
-    M320,362.667c0,11.782-9.551,21.333-21.333,21.333c-11.782,0-21.333-9.551-21.333-21.333
-    v-128c0-11.782,9.551-21.333,21.333-21.333c11.782,0,21.333,9.551,21.333,21.333V362.667z
-    M174.315,85.333c9.074-25.551,33.238-42.634,60.352-42.667h42.667
-    c27.114,0.033,51.278,17.116,60.352,42.667H174.315z"/>
-</svg>`;
 
 
 // ── DOM Elements ───────────────────────────────────────────
@@ -108,7 +80,7 @@ async function loadSales(restoreScrollTop = null) {
       requestAnimationFrame(() => {
         const maxScroll = Math.max(0, scrollArea.scrollHeight - scrollArea.clientHeight);
         scrollArea.scrollTop = Math.min(restoreScrollTop, maxScroll);
-        updateScrollbar();
+        tsScrollbar.update();
       });
     }
   } catch (err) {
@@ -168,7 +140,7 @@ function renderSalesList(sales, totals) {
 
     tr.innerHTML =
       `<td class="ts-col-time">${timeStr}</td>` +
-      `<td class="ts-col-product"><span class="ts-product-name" dir="auto" title="${escapeHtml(s.product_name)}">${escapeHtml(s.product_name)}</span></td>` +
+      `<td class="ts-col-product"><span class="ts-product-name" dir="auto" title="${window.escapeHtml(s.product_name)}">${window.escapeHtml(s.product_name)}</span></td>` +
       `<td class="ts-col-amount">${amountStr}</td>` +
       `<td class="ts-col-paid">${paidStr}</td>` +
       `<td class="ts-col-discount">${discountStr}</td>` +
@@ -192,68 +164,14 @@ function renderSalesList(sales, totals) {
   totalIncomeEl.textContent = `${incomeVal.toFixed(2)} dzd`;
   totalProfitEl.textContent = `${profitVal.toFixed(2)} dzd`;
 
-  requestAnimationFrame(updateScrollbar);
+  requestAnimationFrame(tsScrollbar.update);
 }
 
 // ── Custom Scrollbar Logic ─────────────────────────────────
-function updateScrollbar() {
-  const { scrollHeight, clientHeight, scrollTop } = scrollArea;
-  if (!scrollHeight || clientHeight >= scrollHeight) {
-    sbTrack.style.display = 'none';
-    return;
-  }
-
-  sbTrack.style.display = 'block';
-  const trackH   = sbTrack.clientHeight;
-  const thumbH   = Math.max(24, (clientHeight / scrollHeight) * trackH);
-  const maxTop   = trackH - thumbH;
-  const thumbTop = (scrollTop / (scrollHeight - clientHeight)) * maxTop;
-
-  sbThumb.style.height = `${thumbH}px`;
-  sbThumb.style.top    = `${thumbTop}px`;
-}
-
-scrollArea.addEventListener('scroll', updateScrollbar, { passive: true });
-
-// Click track to jump scroll position
-sbTrack.addEventListener('click', (e) => {
-  if (e.target === sbThumb) return;
-  const rect    = sbTrack.getBoundingClientRect();
-  const thumbH  = sbThumb.offsetHeight;
-  const ratio   = (e.clientY - rect.top - thumbH / 2) / (rect.height - thumbH);
-  const clamped = Math.max(0, Math.min(1, ratio));
-  scrollArea.scrollTop = clamped * (scrollArea.scrollHeight - scrollArea.clientHeight);
-});
-
-// Drag thumb
-let _tsDrag = false;
-let _tsStartY = 0;
-let _tsStartScroll = 0;
-
-sbThumb.addEventListener('mousedown', (e) => {
-  _tsDrag        = true;
-  _tsStartY      = e.clientY;
-  _tsStartScroll = scrollArea.scrollTop;
-  sbThumb.classList.add('dragging');
-  e.preventDefault();
-  e.stopPropagation();
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (!_tsDrag) return;
-  const trackH  = sbTrack.clientHeight;
-  const thumbH  = sbThumb.offsetHeight;
-  const maxTop  = trackH - thumbH;
-  const deltaPx = e.clientY - _tsStartY;
-  const ratio   = maxTop > 0 ? deltaPx / maxTop : 0;
-  scrollArea.scrollTop = _tsStartScroll + ratio * (scrollArea.scrollHeight - scrollArea.clientHeight);
-});
-
-document.addEventListener('mouseup', () => {
-  if (_tsDrag) {
-    _tsDrag = false;
-    sbThumb.classList.remove('dragging');
-  }
+const tsScrollbar = CustomScrollbar.attach({
+  scrollArea,
+  track: sbTrack,
+  thumb: sbThumb,
 });
 
 // ── Initial Fetch ──────────────────────────────────────────

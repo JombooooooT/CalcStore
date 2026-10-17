@@ -8,7 +8,6 @@ const mode   = params.get('mode') || 'add';
 const prodId = params.get('id')   || null;
 
 // ── DOM References ─────────────────────────────────────────
-const titleEl   = document.getElementById('pf-title');
 const nameInput = document.getElementById('pf-name');
 const buyInput  = document.getElementById('pf-buy');
 const sellInput = document.getElementById('pf-sell');

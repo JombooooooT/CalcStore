@@ -100,13 +100,6 @@ const DeleteConfirm = {
 
     return {
       disarm,
-      isArmed,
-      destroy() {
-        disarm();
-        container.removeEventListener('click', handleContainerClick);
-        document.removeEventListener('click', handleDocumentClick);
-        document.removeEventListener('keydown', handleKeydown, true);
-      },
     };
   },
 };

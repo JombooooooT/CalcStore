@@ -80,15 +80,15 @@
         <!-- ── Metric Cards ─────────────────────────────────── -->
         <div class="calc-cards">
           <div class="calc-card">
-            <span class="card-label">Items Sold Today:</span>
+            <span class="card-label" id="card-label-items">Items Sold Today:</span>
             <span class="card-value" id="card-items">0</span>
           </div>
           <div class="calc-card">
-            <span class="card-label">Today's Income:</span>
+            <span class="card-label" id="card-label-income">Today's Income:</span>
             <span class="card-value" id="card-income">0 dzd</span>
           </div>
           <div class="calc-card">
-            <span class="card-label">Today's Profit:</span>
+            <span class="card-label" id="card-label-profit">Today's Profit:</span>
             <span class="card-value" id="card-profit">0 dzd</span>
           </div>
         </div>
@@ -181,7 +181,7 @@
 
         <!-- ── White list box (scrollable body) ─────────────── -->
         <!-- left=28, top=82 (192-110), width=744, height=323   -->
-        <div class="pl-list-box" id="pl-list-box">
+        <div class="pl-list-box">
           <div class="pl-empty" id="pl-empty" style="display: none;">No products yet. Click Add product to start.</div>
           <div class="pl-scroll-area" id="pl-scroll-area">
             <table class="pl-table pl-body-table">
@@ -217,7 +217,7 @@
       <section id="section-stats" class="section" role="tabpanel" aria-labelledby="tab-stats">
 
         <!-- ── Period Selector (top-left) ────────────────────── -->
-        <div class="st-period-pills" id="st-period-pills">
+        <div class="st-period-pills">
           <input type="radio" name="period" id="period-day"   value="day">
           <label for="period-day"   class="st-pill">Day</label>
           <input type="radio" name="period" id="period-week"  value="week" checked>
@@ -227,7 +227,7 @@
         </div>
 
         <!-- ── Top Metric Toggle (top-right) ─────────────────── -->
-        <div class="st-metric-pills" id="st-metric-pills">
+        <div class="st-metric-pills">
           <input type="radio" name="top-metric" id="metric-profit" value="profit" checked>
           <label for="metric-profit" class="st-pill st-pill-wide">By profit</label>
           <input type="radio" name="top-metric" id="metric-qty"    value="qty">
@@ -235,7 +235,7 @@
         </div>
 
         <!-- ── Chart Card (left) ─────────────────────────────── -->
-        <div class="st-chart-card" id="st-chart-card">
+        <div class="st-chart-card">
           <!-- Day-mode message (hidden by default) -->
           <span class="st-day-msg" id="st-day-msg">Can't display data of a day!</span>
           <!-- Empty-state message (hidden by default) -->
@@ -258,8 +258,8 @@
         </div>
 
         <!-- ── Top 5 Products Table (right) ──────────────────── -->
-        <div class="st-top5-box" id="st-top5-box">
-          <table class="st-top5-table" id="st-top5-table">
+        <div class="st-top5-box">
+          <table class="st-top5-table">
             <colgroup>
               <col class="st-col-name">
               <col class="st-col-val">
@@ -277,7 +277,7 @@
         </div>
 
         <!-- ── Bottom Summary Line ───────────────────────────── -->
-        <div class="st-summary" id="st-summary">
+        <div class="st-summary">
           <div class="st-summary-col">
             <span class="st-summary-label">Profit margin:</span>
             <span class="st-summary-value" id="st-margin">—</span>
@@ -300,7 +300,9 @@
   <!-- Chart.js (local vendor copy, no CDN) -->
   <script src="vendor/chart.umd.js"></script>
   <script src="shared/escape-html.js"></script>
+  <script src="shared/utils.js"></script>
   <script src="shared/delete-confirm.js"></script>
+  <script src="shared/scrollbar.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

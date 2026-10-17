@@ -1,12 +1,19 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db.js');
+const { getLocalDateStr } = require('./lib/dates.js');
 
 // Set language switch to en-US for date picker before app is ready
 app.commandLine.appendSwitch('lang', 'en-US');
 
 process.on('uncaughtException', (err) => {
   console.error('UNCAUGHT EXCEPTION:', err);
+  try {
+    db.closeDb();
+  } catch (e) {
+    console.error('Failed to close database:', e);
+  }
   try {
     dialog.showErrorBox('Error', 'An unexpected error occurred. The app will close.');
   } catch (e) {
@@ -18,6 +25,59 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('UNHANDLED REJECTION:', reason);
 });
+
+// ── Automatic Rolling Backups (7-day retention) ─────────────
+async function performRollingBackup() {
+  try {
+    const userDataDir = app.getPath('userData');
+    const backupsDir = path.join(userDataDir, 'backups');
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
+    }
+
+    const liveDbPath = db.getDbPath();
+    if (!liveDbPath || !fs.existsSync(liveDbPath)) {
+      return;
+    }
+
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const todayBackupName = `sales-${yyyy}-${mm}-${dd}.db`;
+    const todayBackupPath = path.join(backupsDir, todayBackupName);
+
+    if (!fs.existsSync(todayBackupPath)) {
+      // Native SQLite backup reads through the live connection, so it captures
+      // transactions still sitting in the WAL file (unlike fs.copyFileSync).
+      await db.backup(todayBackupPath);
+      console.log('Created rolling daily backup:', todayBackupPath);
+    }
+
+    // Prune backups older than 7 days, based on the date encoded in the
+    // filename (sales-YYYY-MM-DD.db) rather than file mtime.
+    const files = fs.readdirSync(backupsDir);
+    const ms7Days = 7 * 24 * 60 * 60 * 1000;
+    const nowTime = now.getTime();
+
+    for (const f of files) {
+      const match = /^sales-(\d{4})-(\d{2})-(\d{2})\.db$/.exec(f);
+      if (!match) continue;
+      const filePath = path.join(backupsDir, f);
+      try {
+        const backupDate = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        if (nowTime - backupDate.getTime() > ms7Days) {
+          fs.unlinkSync(filePath);
+          console.log('Pruned old backup (> 7 days):', f);
+        }
+      } catch (errPrune) {
+        console.error('Failed to prune backup file:', f, errPrune);
+      }
+    }
+  } catch (err) {
+    console.error('Rolling backup failed silently:', err);
+  }
+}
 
 let mainWindow;
 let formWindow = null;       // Only one product-form instance at a time
@@ -38,6 +98,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -89,6 +150,7 @@ function openModal(htmlFile, { width, height, query, preload }) {
       preload: path.join(__dirname, preload),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -201,10 +263,13 @@ function openTodaySells(data) {
 }
 
 // ── App lifecycle ──────────────────────────────────────────────
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
     // Initialize SQLite database
     db.initDb();
+
+    // Perform silent daily rolling backup (7-day retention)
+    await performRollingBackup();
 
     // If launched with --seed flag, populate sample products if empty
     if (process.argv.includes('--seed')) {
@@ -234,6 +299,11 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Close the SQLite connection cleanly before the process exits
+app.on('will-quit', () => {
+  db.closeDb();
 });
 
 // ── IPC handlers ───────────────────────────────────────────────
@@ -272,7 +342,7 @@ function handle(channel, fn) {
       return await fn(event, ...args);
     } catch (err) {
       console.error(`Unexpected error in IPC channel "${channel}":`, err);
-      return { ok: false, error: 'Unexpected error' };
+      return { ok: false, error: err.message || 'Unexpected error', code: err.code };
     }
   });
 }
@@ -289,10 +359,12 @@ function isValidDateStr(str) {
   return date.getFullYear() === y && (date.getMonth() + 1) === m && date.getDate() === d;
 }
 
+// Strict check: value must already be a positive integer number.
 function isValidPositiveInt(id) {
   return typeof id === 'number' && Number.isInteger(id) && id > 0;
 }
 
+// Lenient parse: accepts a positive integer number or a digits-only string.
 function parsePositiveInt(val) {
   if (typeof val === 'number') {
     return isValidPositiveInt(val) ? val : null;
@@ -364,14 +436,19 @@ handle('sales:add', (_event, data) => {
   ) {
     return { ok: false, errors: { value: 'Invalid request' } };
   }
-  return db.addSale(data);
+  const result = db.addSale(data);
+  if (result && result.ok && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('sales:changed');
+  }
+  return result;
 });
 
 handle('sales:getDayStats', (_event, dateStr) => {
   if (!isValidDateStr(dateStr)) {
     return { ok: false, error: 'Invalid date' };
   }
-  return db.getDayStats(dateStr);
+  const stats = db.getDayStats(dateStr);
+  return { ok: true, items: stats.items, income: stats.income, profit: stats.profit };
 });
 
 handle('sales:list', (_event, dateStr) => {
@@ -395,13 +472,6 @@ handle('sales:delete', (_event, id) => {
 });
 
 // ── Database Stats IPC Handler ─────────────────────────────────
-function getLocalDateStr(d) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 handle('stats:get', (_event, period) => {
   if (period !== 'day' && period !== 'week' && period !== 'month') {
     return { ok: false, error: 'Invalid period' };
@@ -409,5 +479,81 @@ handle('stats:get', (_event, period) => {
   const todayStr = getLocalDateStr(new Date());
   return db.getStats(period, todayStr);
 });
+
+// ── CSV Export with UTF-8 BOM ──────────────────────────────────
+handle('export-csv', async () => {
+  try {
+    const todayStr = getLocalDateStr(new Date());
+    const defaultFileName = `CalcStore_Data_${todayStr}.csv`;
+
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Sales Data to CSV',
+      defaultPath: defaultFileName,
+      filters: [{ name: 'CSV Files', extensions: ['csv'] }],
+    });
+
+    if (canceled || !filePath) {
+      return { ok: false, canceled: true };
+    }
+
+    const sales = db.getAllSalesCalc();
+
+    // CSV Header
+    const headers = [
+      'ID',
+      'Product ID',
+      'Product Name',
+      'Quantity',
+      'Unit Price (DZD)',
+      'Unit Cost (DZD)',
+      'Discount (DZD)',
+      'Sold At',
+      'Sold Date',
+      'Paid (DZD)',
+      'Profit (DZD)',
+    ];
+
+    function escapeCsvCell(val) {
+      if (val === null || val === undefined) return '""';
+      let str = String(val);
+      // Prevent CSV formula injection (Excel/Sheets) by prefixing a quote.
+      // Pure numeric values (e.g. negative profit "-100") are left untouched.
+      if (/^[=+\-@]/.test(str) && !Number.isFinite(Number(str))) {
+        str = "'" + str;
+      }
+      str = str.replace(/"/g, '""');
+      return `"${str}"`;
+    }
+
+    const rows = [headers.map(escapeCsvCell).join(',')];
+
+    for (const s of sales) {
+      const row = [
+        s.id,
+        s.product_id,
+        s.product_name,
+        s.quantity,
+        s.unit_price,
+        s.unit_cost,
+        s.discount,
+        s.sold_at,
+        s.sold_date,
+        s.paid,
+        s.profit,
+      ];
+      rows.push(row.map(escapeCsvCell).join(','));
+    }
+
+    // Prepend UTF-8 BOM (\uFEFF) for Microsoft Excel compatibility with Arabic
+    const csvContent = '\uFEFF' + rows.join('\r\n');
+    await fs.promises.writeFile(filePath, csvContent, 'utf8');
+
+    return { ok: true, filePath };
+  } catch (err) {
+    console.error('CSV export failed:', err);
+    return { ok: false, error: err.message || 'Export failed' };
+  }
+});
+
 
 

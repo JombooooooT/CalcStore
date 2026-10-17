@@ -39,7 +39,7 @@ tabButtons.forEach((btn) => {
     // Refresh product-list when its tab is opened
     if (target === 'products') {
       loadProducts();
-      requestAnimationFrame(updatePLThumb);
+      requestAnimationFrame(plScrollbar.update);
     } else if (target === 'sales') {
       loadCalculatorProducts();
       loadDayCards();
@@ -48,54 +48,23 @@ tabButtons.forEach((btn) => {
 });
 
 // ── Calculator Tab ─────────────────────────────────────────
-
-// Helper: Round money to 2 decimals
-function round2(val) {
-  return Math.round((Number(val) + Number.EPSILON) * 100) / 100;
-}
-
-function formatMoney(num) {
-  const n = Number(num || 0);
-  const formatted = parseFloat(n.toFixed(2)).toString();
-  return `${formatted} dzd`;
-}
-
-function getLocalDateStr(d = new Date()) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function formatDateDisplay(d = new Date()) {
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-function parseDateStr(str) {
-  if (!str) return new Date();
-  const [yyyy, mm, dd] = str.split('-').map(Number);
-  return new Date(yyyy, mm - 1, dd);
-}
-
-// ── Arabic Normalization Helper ────────────────────────────
-function normalizeArabic(text) {
-  if (!text) return '';
-  return text
-    .toLowerCase()
-    .replace(/[\u064B-\u065F\u0670]/g, '') // remove tashkeel / diacritics
-    .replace(/[أإآا]/g, 'ا')               // normalize alefs
-    .replace(/[ةه]/g, 'ه')                 // ة = ه
-    .replace(/[ىي]/g, 'ي')                 // ى = ي
-    .trim();
-}
+const {
+  round2,
+  formatMoney,
+  getLocalDateStr,
+  formatDateDisplay,
+  parseDateStr,
+  normalizeArabic,
+  TRASH_SVG,
+} = window.CalcUtils;
 
 // ── Cards Metric Loading & Auto-fit ────────────────────────
-const cardItemsEl  = document.getElementById('card-items');
-const cardIncomeEl = document.getElementById('card-income');
-const cardProfitEl = document.getElementById('card-profit');
+const cardItemsEl       = document.getElementById('card-items');
+const cardIncomeEl      = document.getElementById('card-income');
+const cardProfitEl      = document.getElementById('card-profit');
+const cardLabelItemsEl  = document.getElementById('card-label-items');
+const cardLabelIncomeEl = document.getElementById('card-label-income');
+const cardLabelProfitEl = document.getElementById('card-label-profit');
 
 function fitCardValue(el) {
   if (!el) return;
@@ -110,10 +79,18 @@ function fitCardValue(el) {
   }
 }
 
-async function loadDayCards() {
+async function loadDayCards(targetDate = null) {
   try {
     const todayStr = getLocalDateStr(new Date());
-    const stats = await window.api.getDayStats(todayStr);
+    const queryDate = targetDate || selectedDate || todayStr;
+    const isTargetToday = queryDate === todayStr;
+
+    // Update card labels dynamically
+    if (cardLabelItemsEl)  cardLabelItemsEl.textContent  = isTargetToday ? "Items Sold Today:" : "Items Sold:";
+    if (cardLabelIncomeEl) cardLabelIncomeEl.textContent = isTargetToday ? "Today's Income:"   : "Income:";
+    if (cardLabelProfitEl) cardLabelProfitEl.textContent = isTargetToday ? "Today's Profit:"   : "Profit:";
+
+    const stats = await window.api.getDayStats(queryDate);
     if (!stats || stats.ok === false) {
       // Leave cards unchanged on failure
       return;
@@ -218,6 +195,7 @@ if (dateBtnEl && datePickerEl) {
     if (val && val <= todayStr) {
       selectedDate = val;
       updateDateUI();
+      loadDayCards();
     } else {
       datePickerEl.value = selectedDate;
     }
@@ -273,40 +251,48 @@ const dropdownWrap      = document.getElementById('dropdown-wrap');
 const dropdownInput     = document.getElementById('dropdown-input');
 const dropdownList      = document.getElementById('dropdown-list');
 
-async function loadCalculatorProducts() {
+// Fetch the active product list once; null signals a load failure.
+async function fetchProducts() {
   try {
     const list = await window.api.listProducts();
-    if (!list || !Array.isArray(list)) {
-      return;
-    }
-    // Active products sorted by name
-    calcProducts = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-
-    // Check if selected product was updated or deleted
-    if (selectedProduct) {
-      const match = calcProducts.find(p => p.id === selectedProduct.id);
-      if (!match) {
-        // Deleted
-        selectedProduct = null;
-        dropdownInput.value = '';
-        recalcInputs();
-      } else {
-        // Renamed or price changed
-        const nameChanged = selectedProduct.name !== match.name;
-        selectedProduct = match;
-        if (nameChanged && !isComboboxOpen) {
-          dropdownInput.value = match.name;
-        }
-        recalcInputs();
-      }
-    }
-
-    if (isComboboxOpen) {
-      filterCombobox(dropdownInput.value);
-    }
+    return Array.isArray(list) ? list : null;
   } catch (err) {
-    console.error('Failed to load calculator products:', err);
+    console.error('Failed to load products:', err);
+    return null;
+  }
+}
+
+async function loadCalculatorProducts(list = null) {
+  const items = list !== null ? list : await fetchProducts();
+  if (items === null) {
     calcProducts = [];
+    return;
+  }
+
+  // Active products sorted by name
+  calcProducts = items.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
+  // Check if selected product was updated or deleted
+  if (selectedProduct) {
+    const match = calcProducts.find(p => p.id === selectedProduct.id);
+    if (!match) {
+      // Deleted
+      selectedProduct = null;
+      dropdownInput.value = '';
+      recalcInputs();
+    } else {
+      // Renamed or price changed
+      const nameChanged = selectedProduct.name !== match.name;
+      selectedProduct = match;
+      if (nameChanged && !isComboboxOpen) {
+        dropdownInput.value = match.name;
+      }
+      recalcInputs();
+    }
+  }
+
+  if (isComboboxOpen) {
+    filterCombobox(dropdownInput.value);
   }
 }
 
@@ -690,8 +676,8 @@ async function handleAddSale() {
 
       dropdownInput.focus();
 
-      // Refresh cards
-      await loadDayCards();
+      // Cards refresh (and the stats cache is invalidated) via the
+      // 'sales:changed' broadcast emitted by main.js on a successful add.
     }
   } catch (err) {
     console.error('Error adding sale:', err);
@@ -708,22 +694,6 @@ if (addSaleBtn) {
 
 
 // ── Product List Tab ───────────────────────────────────────
-
-// Trash-can icon — inline SVG
-const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
-  width="20" height="20" fill="currentColor">
-  <path d="M448,85.333h-66.133C371.66,35.703,328.002,0.064,277.333,0h-42.667
-    c-50.669,0.064-94.327,35.703-104.533,85.333H64c-11.782,0-21.333,9.551-21.333,21.333
-    S52.218,128,64,128h21.333v277.333C85.404,464.214,133.119,511.93,192,512h128
-    c58.881-0.07,106.596-47.786,106.667-106.667V128H448c11.782,0,21.333-9.551,21.333-21.333
-    S459.782,85.333,448,85.333z
-    M234.667,362.667c0,11.782-9.551,21.333-21.333,21.333C201.551,384,192,374.449,192,362.667
-    v-128c0-11.782,9.551-21.333,21.333-21.333c11.782,0,21.333,9.551,21.333,21.333V362.667z
-    M320,362.667c0,11.782-9.551,21.333-21.333,21.333c-11.782,0-21.333-9.551-21.333-21.333
-    v-128c0-11.782,9.551-21.333,21.333-21.333c11.782,0,21.333,9.551,21.333,21.333V362.667z
-    M174.315,85.333c9.074-25.551,33.238-42.634,60.352-42.667h42.667
-    c27.114,0.033,51.278,17.116,60.352,42.667H174.315z"/>
-</svg>`;
 
 // Profit Margin helper: (sell - buy) / buy * 100 rounded to whole number
 // When buy is 0, return null and show "—" in the Product list
@@ -761,7 +731,7 @@ const plDeleteConfirm = DeleteConfirm.attach({
 
     await loadProducts();
     scrollArea.scrollTop = savedScroll;
-    updatePLThumb();
+    plScrollbar.update();
   },
   timeout: 3000,
 });
@@ -795,7 +765,7 @@ function renderProductList(products) {
     tr.className = 'pl-row';
     tr.dataset.id = String(p.id);
 
-    const safeName = window.escapeHtml ? window.escapeHtml(p.name) : p.name;
+    const safeName = window.escapeHtml(p.name);
 
     tr.innerHTML =
       `<td>${formatProductId(p.id)}</td>` +
@@ -813,62 +783,14 @@ function renderProductList(products) {
     plTbody.appendChild(tr);
   });
 
-  updatePLThumb();
+  plScrollbar.update();
 }
 
 // ── Custom scrollbar ───────────────────────────────────────
-function updatePLThumb() {
-  const { scrollHeight, clientHeight, scrollTop } = scrollArea;
-  if (!scrollHeight || clientHeight >= scrollHeight) {
-    sbTrack.style.display = 'none';
-    return;
-  }
-
-  sbTrack.style.display = 'block';
-  const trackH  = sbTrack.clientHeight;
-  const thumbH  = Math.max(24, (clientHeight / scrollHeight) * trackH);
-  const maxTop  = trackH - thumbH;
-  const thumbTop = (scrollTop / (scrollHeight - clientHeight)) * maxTop;
-  sbThumb.style.height = `${thumbH}px`;
-  sbThumb.style.top    = `${thumbTop}px`;
-}
-
-scrollArea.addEventListener('scroll', updatePLThumb, { passive: true });
-
-// Click track to jump scroll position
-sbTrack.addEventListener('click', e => {
-  if (e.target === sbThumb) return;
-  const rect    = sbTrack.getBoundingClientRect();
-  const thumbH  = sbThumb.offsetHeight;
-  const ratio   = (e.clientY - rect.top - thumbH / 2) / (rect.height - thumbH);
-  const clamped = Math.max(0, Math.min(1, ratio));
-  scrollArea.scrollTop = clamped * (scrollArea.scrollHeight - scrollArea.clientHeight);
-});
-
-// Drag the thumb
-let _plDrag = false, _plStartY = 0, _plStartScroll = 0;
-
-sbThumb.addEventListener('mousedown', e => {
-  _plDrag        = true;
-  _plStartY      = e.clientY;
-  _plStartScroll = scrollArea.scrollTop;
-  sbThumb.classList.add('dragging');
-  e.preventDefault();
-  e.stopPropagation();
-});
-
-document.addEventListener('mousemove', e => {
-  if (!_plDrag) return;
-  const trackH   = sbTrack.clientHeight;
-  const thumbH   = sbThumb.offsetHeight;
-  const maxTop   = trackH - thumbH;
-  const deltaPx  = e.clientY - _plStartY;
-  const ratio    = maxTop > 0 ? deltaPx / maxTop : 0;
-  scrollArea.scrollTop = _plStartScroll + ratio * (scrollArea.scrollHeight - scrollArea.clientHeight);
-});
-
-document.addEventListener('mouseup', () => {
-  if (_plDrag) { _plDrag = false; sbThumb.classList.remove('dragging'); }
+const plScrollbar = CustomScrollbar.attach({
+  scrollArea,
+  track: sbTrack,
+  thumb: sbThumb,
 });
 
 function renderProductListError(msg) {
@@ -882,22 +804,16 @@ function renderProductListError(msg) {
 }
 
 // ── Load Products from DB ──────────────────────────────────
-async function loadProducts(selectId = null) {
-  try {
-    const res = await window.api.listProducts();
-    if (!res || !Array.isArray(res)) {
-      currentProducts = [];
-      renderProductListError("Couldn't load products");
-      return;
-    }
-    currentProducts = res;
-    renderProductList(currentProducts);
-  } catch (err) {
-    console.error('Failed to load products:', err);
+async function loadProducts(selectId = null, list = null) {
+  const products = list !== null ? list : await fetchProducts();
+  if (products === null) {
     currentProducts = [];
     renderProductListError("Couldn't load products");
     return;
   }
+
+  currentProducts = products;
+  renderProductList(currentProducts);
 
   if (selectId) {
     const targetRow = plTbody.querySelector(`tr[data-id="${selectId}"]`);
@@ -908,7 +824,7 @@ async function loadProducts(selectId = null) {
       targetRow.classList.add('selected');
       _editBtn.disabled = false;
       targetRow.scrollIntoView({ block: 'nearest' });
-      requestAnimationFrame(updatePLThumb);
+      requestAnimationFrame(plScrollbar.update);
     }
   } else {
     const selected = plTbody.querySelector('tr.pl-row.selected');
@@ -960,9 +876,10 @@ _editBtn.addEventListener('click', () => {
 });
 
 // Listen for updates from modal window saves
-window.api.onProductsChanged((affectedId) => {
-  loadProducts(affectedId);
-  loadCalculatorProducts();
+window.api.onProductsChanged(async (affectedId) => {
+  const list = await fetchProducts();
+  await loadProducts(affectedId, list);
+  await loadCalculatorProducts(list);
   if (typeof invalidateStatsCache === 'function') {
     invalidateStatsCache();
   }
@@ -990,7 +907,6 @@ setupMidnightTimer();
 
 /* ---- DOM references (declared before use) ---------------- */
 const _secStats      = document.getElementById('section-stats');
-const _stChartCard   = document.getElementById('st-chart-card');
 const _stChartWrap   = document.getElementById('st-chart-wrap');
 const _stDayMsg      = document.getElementById('st-day-msg');
 const _stEmptyMsg    = document.getElementById('st-empty-msg');
@@ -1147,7 +1063,7 @@ function formatChartLabels(labels) {
 
 function renderTop5Empty() {
   _stTop5Tbody.innerHTML = `
-    <tr class="st-empty-table-row">
+    <tr>
       <td colspan="2" class="st-empty-table-cell">No sales yet</td>
     </tr>
   `;
@@ -1182,7 +1098,7 @@ function renderTop5Table(data) {
       valStr = parseFloat(Number(item.value).toFixed(4)).toString();
     }
 
-    const safeName = window.escapeHtml ? window.escapeHtml(item.name) : item.name;
+    const safeName = window.escapeHtml(item.name);
     const valClass = isNeg ? 'st-top5-val st-val-neg' : 'st-top5-val';
 
     tr.innerHTML =
@@ -1190,6 +1106,17 @@ function renderTop5Table(data) {
       `<td><span class="${valClass}">${valStr}</span></td>`;
     _stTop5Tbody.appendChild(tr);
   });
+}
+
+function resetStatsPanels(period) {
+  _stMargin.textContent    = '—';
+  _stDiscounts.textContent = '—';
+  if (period === 'day') {
+    _stBestDayCol.style.visibility = 'hidden';
+  } else {
+    _stBestDayCol.style.visibility = 'visible';
+    _stBestDay.textContent = '—';
+  }
 }
 
 function showStatsLoading(period) {
@@ -1200,14 +1127,7 @@ function showStatsLoading(period) {
 
   renderTop5Empty();
 
-  _stMargin.textContent    = '—';
-  _stDiscounts.textContent = '—';
-  if (period === 'day') {
-    _stBestDayCol.style.visibility = 'hidden';
-  } else {
-    _stBestDayCol.style.visibility = 'visible';
-    _stBestDay.textContent = '—';
-  }
+  resetStatsPanels(period);
 }
 
 function showStatsFailure(period) {
@@ -1220,14 +1140,7 @@ function showStatsFailure(period) {
 
   renderTop5Empty();
 
-  _stMargin.textContent    = '—';
-  _stDiscounts.textContent = '—';
-  if (period === 'day') {
-    _stBestDayCol.style.visibility = 'hidden';
-  } else {
-    _stBestDayCol.style.visibility = 'visible';
-    _stBestDay.textContent = '—';
-  }
+  resetStatsPanels(period);
 }
 
 function displayStats(data, period) {
@@ -1246,15 +1159,7 @@ function displayStats(data, period) {
 
     renderTop5Empty();
 
-    _stMargin.textContent    = '—';
-    _stDiscounts.textContent = '—';
-
-    if (period === 'day') {
-      _stBestDayCol.style.visibility = 'hidden';
-    } else {
-      _stBestDayCol.style.visibility = 'visible';
-      _stBestDay.textContent = '—';
-    }
+    resetStatsPanels(period);
     return;
   }
 
@@ -1379,4 +1284,56 @@ const _statsObserver = new MutationObserver(() => {
     });
   }
 });
+
 _statsObserver.observe(_secStats, { attributes: true, attributeFilter: ['class'] });
+
+// ── Global Keyboard Shortcuts ──────────────────────────────
+document.addEventListener('keydown', async (e) => {
+  // 1. CSV Export: Ctrl+E (or Ctrl+e)
+  if (e.ctrlKey && (e.key === 'e' || e.key === 'E')) {
+    e.preventDefault();
+    try {
+      const res = await window.api.exportCsv();
+      if (res && res.ok) {
+        alert('Export Complete');
+      } else if (res && res.error) {
+        alert('Export Failed: ' + res.error);
+      }
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      alert('Export Failed');
+    }
+    return;
+  }
+
+  // 2. Escape: Close any open modal / dropdown
+  if (e.key === 'Escape') {
+    // If the calculator combobox is open, close it
+    if (typeof isComboboxOpen !== 'undefined' && isComboboxOpen) {
+      e.preventDefault();
+      closeCombobox(true);
+      return;
+    }
+  }
+
+  // 3. Tab Switching: AZERTY (1/&, 2/é, 3/") & QWERTY (1, 2, 3)
+  // Only trigger when user is NOT typing inside an input or textarea
+  const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+  const isInputActive = activeTag === 'input' || activeTag === 'textarea' || (document.activeElement && document.activeElement.isContentEditable);
+  if (!isInputActive && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (e.code === 'Digit1' || ['1', '&'].includes(e.key)) {
+      e.preventDefault();
+      const tab1 = document.getElementById('tab-sales');
+      if (tab1) tab1.click();
+    } else if (e.code === 'Digit2' || ['2', 'é', 'É'].includes(e.key)) {
+      e.preventDefault();
+      const tab2 = document.getElementById('tab-products');
+      if (tab2) tab2.click();
+    } else if (e.code === 'Digit3' || ['3', '"'].includes(e.key)) {
+      e.preventDefault();
+      const tab3 = document.getElementById('tab-stats');
+      if (tab3) tab3.click();
+    }
+  }
+});
+

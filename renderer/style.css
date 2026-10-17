@@ -2,30 +2,12 @@
    CalcStore — Global Stylesheet
    ========================================================= */
 
-/* ---------- Cairo font (Arabic support, self-hosted) ------ */
-@font-face {
-  font-family: 'Cairo';
-  font-style:  normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff2') format('woff2'),
-       url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff')  format('woff');
-  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
-}
-
-@font-face {
-  font-family: 'Cairo';
-  font-style:  normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff2') format('woff2'),
-       url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff')  format('woff');
-  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
-}
+/* ---------- Base reset, fonts & shared tokens ---------- */
+@import './shared/base.css';
 
 /* ---------- Design Tokens ---------- */
 :root {
-  --font: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: var(--font-family-base);
 
   --bg:          #002323;
   --tab:         #14594e;
@@ -44,13 +26,24 @@
 
   --win-btn-size:  25px;
   --tab-btn-size:  45px;
-}
 
-/* ---------- Reset ---------- */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  /* Product list tab */
+  --pl-row-text:  #0b4a3f;
+  --pl-sep:       #24b29d;
+  --pl-del:       #c0141c;
+  --pl-del-hover: #e04040;
+  /* Selection highlight: #59e5d0 at 82% opacity against white    */
+  /* (slightly softer than full #59e5d0 to avoid over-brightness) */
+  --row-selected: rgba(89, 229, 208, 0.82);
+  --row-hover:    rgba(89, 229, 208, 0.12);
+
+  /* Stats tab */
+  --st-accent:       #59e5d0;
+  --st-card-bg:      #14594e;
+  --st-pill-bg:      #14594e;
+  --st-pill-active:  #24b29d;
+  --st-table-text:   #0b4a3f;
+  --st-table-sep:    #24b29d;
 }
 
 html, body {
@@ -615,18 +608,6 @@ html, body {
    (window y minus 110 px top-bar height).
    ========================================================= */
 
-/* New tokens */
-:root {
-  --pl-row-text:  #0b4a3f;
-  --pl-sep:       #24b29d;
-  --pl-del:       #c0141c;
-  --pl-del-hover: #e04040;
-  /* Selection highlight: #59e5d0 at 82% opacity against white    */
-  /* (slightly softer than full #59e5d0 to avoid over-brightness) */
-  --row-selected: rgba(89, 229, 208, 0.82);
-  --row-hover:    rgba(89, 229, 208, 0.12);
-}
-
 /* ---- Shared colgroup column widths (700 px total) -------- */
 /* id 72 | Name 210 | Buy 161 | Sell 138 | Margin 67 | Del 52 */
 .col-id     { width: 72px; }
@@ -932,16 +913,6 @@ html, body {
    All y-values are relative to the section top
    (window y minus 110 px top-bar height).
    ========================================================= */
-
-/* New Stats tokens */
-:root {
-  --st-accent:       #59e5d0;
-  --st-card-bg:      #14594e;
-  --st-pill-bg:      #14594e;
-  --st-pill-active:  #24b29d;
-  --st-table-text:   #0b4a3f;
-  --st-table-sep:    #24b29d;
-}
 
 /* ---- Pill radio groups ------------------------------------ */
 /* Hide the real radio inputs, style labels as visible pills   */

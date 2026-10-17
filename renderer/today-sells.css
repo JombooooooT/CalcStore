@@ -3,30 +3,12 @@
    Standalone: does not inherit from the main window's CSS.
    ========================================================= */
 
-/* ---------- Cairo font (Arabic support, self-hosted) ------ */
-@font-face {
-  font-family: 'Cairo';
-  font-style:  normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff2') format('woff2'),
-       url('../node_modules/@fontsource/cairo/files/cairo-arabic-400-normal.woff')  format('woff');
-  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
-}
-
-@font-face {
-  font-family: 'Cairo';
-  font-style:  normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff2') format('woff2'),
-       url('../node_modules/@fontsource/cairo/files/cairo-arabic-700-normal.woff')  format('woff');
-  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
-}
+/* ---------- Base reset, fonts & shared tokens ---------- */
+@import './shared/base.css';
 
 /* ---------- Design tokens ---------- */
 :root {
-  --ts-font:        'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ts-font:        var(--font-family-base);
   --ts-card-bg:     #14594e;
   --ts-accent:      #24b29d;
   --ts-accent-hover:#2cc4ad;
@@ -35,13 +17,6 @@
   --ts-del-red:     #c0141c;
   --ts-del-hover:   #e0242d;
   --ts-sep:         #24b29d;
-}
-
-/* ---------- Reset ---------- */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html, body {
@@ -247,7 +222,7 @@ html, body {
   text-align: left;
 }
 
-.ts-product-name[dir="rtl"] {
+.ts-product-name:dir(rtl) {
   direction: rtl;
   text-align: right;
 }
